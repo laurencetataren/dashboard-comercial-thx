@@ -27,6 +27,7 @@ const TABS = [
 const STAGE_COLORS = {
   'Pedido de Cotacao': '#f59e0b',
   'Em Negociacao': '#06b6d4',
+  'BID': '#8b5cf6',
   'Proposta Aprovada': '#10b981',
 }
 
