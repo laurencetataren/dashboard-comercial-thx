@@ -731,7 +731,3 @@ function TabProjecao({ data, metrics }) {
     </div>
   )
 }
-iv>
-    </div>
-  )
-}
