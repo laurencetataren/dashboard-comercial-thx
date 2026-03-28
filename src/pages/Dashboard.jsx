@@ -20,7 +20,7 @@ const TABS = [
   { id: 'visao', label: 'Visao Geral', icon: BarChart3 },
   { id: 'funil', label: 'Funil', icon: Funnel },
   { id: 'performance', label: 'Performance', icon: Users },
-  { id: 'movimentacao', label: 'Movimentacao', icon: ArrowLeftRight },
+  { id: 'clientes', label: 'Clientes', icon: Users },
   { id: 'projecao', label: 'Projecao', icon: TrendingUp },
 ]
 
@@ -66,7 +66,7 @@ export default function Dashboard() {
     visao: TabVisaoGeral,
     funil: TabFunil,
     performance: TabPerformance,
-    movimentacao: TabMovimentacao,
+    clientes: TabClientes,
     projecao: TabProjecao,
   }[activeTab]
 
@@ -508,6 +508,7 @@ function TabPerformance({ data, metrics }) {
     fill: VENDEDORA_COLORS[i % VENDEDORA_COLORS.length]
   }))
 
+  // Won por vendedora detalhado
   const wonByVendedora = {}
   ;(data.wonDeals || []).forEach(d => {
     const key = d.vendedora || 'Sem dono'
@@ -516,6 +517,7 @@ function TabPerformance({ data, metrics }) {
     wonByVendedora[key].valor += d.valor || 0
   })
 
+  // Lost por vendedora
   const lostByVendedora = {}
   ;(data.lostDeals || []).forEach(d => {
     const key = d.vendedora || 'Sem dono'
@@ -523,134 +525,119 @@ function TabPerformance({ data, metrics }) {
     lostByVendedora[key]++
   })
 
-  return (
-    <div className="space-y-8">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <KPICard label="Vendedoras Ativas" value={metrics.vendedoras.length} icon={Users} color="cyan" />
-        <KPICard label="Total Vendido" value={fmtCurrencyShort(metrics.totalWonValor)} icon={DollarSign} color="emerald" />
-        <KPICard label="Ticket Medio Geral" value={fmtCurrencyShort(metrics.ticketMedio)} icon={Zap} color="violet" />
-      </div>
+  // Atividades
+  const atividades = data.atividades || []
+  const totalAtividades = atividades.reduce((s, a) => s + a.ligacoes + a.emails + a.reunioes + a.propostas + a.followups + a.whatsapp, 0)
+  const atividadeLabels = [
+    { key: 'ligacoes', label: 'Ligacoes', color: '#06b6d4' },
+    { key: 'emails', label: 'Emails', color: '#8b5cf6' },
+    { key: 'whatsapp', label: 'WhatsApp', color: '#10b981' },
+    { key: 'reunioes', label: 'Reunioes', color: '#f59e0b' },
+    { key: 'propostas', label: 'Propostas', color: '#ec4899' },
+    { key: 'followups', label: 'Follow-ups', color: '#ef4444' }
+  ]
 
-      {/* Chart vendedoras */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <GlassCard>
-          <div className="p-6">
-            <SectionTitle icon={Award}>Valor Vendido por Vendedora</SectionTitle>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartVendedoras} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
-                  <YAxis type="category" dataKey="nome" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 12 }} axisLine={false} tickLine={false} width={80} />
-                  <Tooltip content={<CustomTooltip formatter={(v, name) => name === 'count' ? v : fmtCurrency(v)} />} />
-                  <Bar dataKey="valor" name="Valor" radius={[0, 6, 6, 0]}>
-                    {chartVendedoras.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </GlassCard>
+  // Chart data para atividades comparativas
+  const atividadesChartData = atividadeLabels.map(al => {
+    const point = { tipo: al.label }
+    atividades.forEach(a => {
+      point[a.vendedora.split(' ')[0]] = a[al.key]
+    })
+    return point
+  })
 
-        {/* Cards individuais */}
-        <div className="space-y-4">
-          {chartVendedoras.map((v, i) => {
-            const lost = lostByVendedora[v.nomeCompleto] || 0
-            const totalDecidido = v.count + lost
-            const conv = totalDecidido > 0 ? (v.count / totalDecidido) * 100 : 0
-
-            return (
-              <GlassCard key={i} hover>
-                <div className="p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold" style={{ background: `${v.fill}20`, color: v.fill }}>
-                      {v.nomeCompleto.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-white/90">{v.nomeCompleto}</p>
-                      <p className="text-[11px] text-white/30">{v.count} deals ganhos | {lost} perdidos</p>
-                    </div>
-                    <p className="text-lg font-bold" style={{ color: v.fill }}>{fmtCurrencyShort(v.valor)}</p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <p className="text-[10px] uppercase text-white/30">Ticket Medio</p>
-                      <p className="text-sm font-medium text-white/70">{fmtCurrencyShort(v.ticketMedio)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase text-white/30">Conversao</p>
-                      <p className="text-sm font-medium text-white/70">{fmtPct(conv)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase text-white/30">Vs Meta</p>
-                      <ProgressBar value={v.valor} max={metrics.metaValor / Math.max(metrics.vendedoras.length, 1)} color={v.fill === '#06b6d4' ? 'cyan' : 'violet'} size="sm" />
-                    </div>
-                  </div>
-                </div>
-              </GlassCard>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// =============================================
-// TAB: MOVIMENTACAO
-// =============================================
-function TabMovimentacao({ data, metrics }) {
+  // Motivos de perda
   const motivosData = metrics.motivosPerda.slice(0, 6).map((m, i) => ({
     motivo: m.motivo.length > 15 ? m.motivo.slice(0, 15) + '...' : m.motivo,
     motivoFull: m.motivo,
     count: m.count,
     fill: ['#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#10b981', '#ec4899'][i]
   }))
-
   const totalLost = motivosData.reduce((s, m) => s + m.count, 0)
-
-  const movData = metrics.historico.map(h => ({
-    mes: fmtMes(h.mes),
-    novos: h.new_count,
-    ganhos: h.won_count,
-    perdidos: h.lost_count
-  }))
 
   return (
     <div className="space-y-8">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard label="Deals Ganhos" value={metrics.totalWonCount} icon={ArrowUpRight} color="emerald" />
-        <KPICard label="Deals Perdidos" value={metrics.totalLostCount} icon={ArrowDownRight} color="rose" />
-        <KPICard label="No Funil Agora" value={metrics.totalFunilCount} icon={Funnel} color="cyan" />
-        <KPICard label="Win Rate" value={fmtPct(metrics.taxaConversao)} trend={metrics.trendConversao} icon={Target} color="violet" />
+        <KPICard label="Total Vendido" value={fmtCurrencyShort(metrics.totalWonValor)} icon={DollarSign} color="emerald" />
+        <KPICard label="Ticket Medio" value={fmtCurrencyShort(metrics.ticketMedio)} icon={Zap} color="violet" />
+        <KPICard label="Win Rate" value={fmtPct(metrics.taxaConversao)} trend={metrics.trendConversao} icon={Target} color="cyan" />
+        <KPICard label="Total Atividades" value={totalAtividades} subtitle="no mes" icon={BarChart3} color="amber" />
       </div>
 
+      {/* Cards vendedoras */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Movimentacao mensal */}
+        {chartVendedoras.map((v, i) => {
+          const lost = lostByVendedora[v.nomeCompleto] || 0
+          const totalDecidido = v.count + lost
+          const conv = totalDecidido > 0 ? (v.count / totalDecidido) * 100 : 0
+          const atv = atividades.find(a => a.vendedora === v.nomeCompleto) || {}
+
+          return (
+            <GlassCard key={i}>
+              <div className="p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold" style={{ background: `${v.fill}20`, color: v.fill }}>
+                    {v.nomeCompleto.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-white/90">{v.nomeCompleto}</p>
+                    <p className="text-[11px] text-white/30">{v.count} deals ganhos | {lost} perdidos</p>
+                  </div>
+                  <p className="text-xl font-bold" style={{ color: v.fill }}>{fmtCurrencyShort(v.valor)}</p>
+                </div>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div>
+                    <p className="text-[10px] uppercase text-white/30">Ticket Medio</p>
+                    <p className="text-sm font-medium text-white/70">{fmtCurrencyShort(v.ticketMedio)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-white/30">Conversao</p>
+                    <p className="text-sm font-medium text-white/70">{fmtPct(conv)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-white/30">Vs Meta</p>
+                    <ProgressBar value={v.valor} max={metrics.metaValor / Math.max(metrics.vendedoras.length, 1)} color={v.fill === '#06b6d4' ? 'cyan' : 'violet'} size="sm" />
+                  </div>
+                </div>
+                {/* Atividades inline */}
+                <div className="border-t border-white/[0.06] pt-3">
+                  <p className="text-[10px] uppercase text-white/25 mb-2">Atividades do Mes</p>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    {atividadeLabels.map(al => (
+                      <div key={al.key} className="text-center">
+                        <p className="text-lg font-bold text-white/80">{atv[al.key] || 0}</p>
+                        <p className="text-[9px] text-white/30">{al.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          )
+        })}
+      </div>
+
+      {/* Atividades comparativas + Motivos de perda */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <GlassCard>
           <div className="p-6">
-            <SectionTitle icon={ArrowLeftRight}>Movimentacao Mensal</SectionTitle>
+            <SectionTitle icon={BarChart3}>Atividades Comparativas</SectionTitle>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={movData}>
+                <BarChart data={atividadesChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="tipo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="ganhos" name="Ganhos" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="perdidos" name="Perdidos" fill="#ef4444" radius={[4, 4, 0, 0]} opacity={0.6} />
-                  <Bar dataKey="novos" name="Novos" fill="#06b6d4" radius={[4, 4, 0, 0]} opacity={0.4} />
+                  <Bar dataKey="Tayna" name="Tayna" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Gabrieli" name="Gabrieli" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
         </GlassCard>
 
-        {/* Motivos de perda */}
         <GlassCard>
           <div className="p-6">
             <SectionTitle icon={XCircle} description={`${totalLost} deals perdidos analisados`}>Motivos de Perda</SectionTitle>
@@ -676,6 +663,114 @@ function TabMovimentacao({ data, metrics }) {
           </div>
         </GlassCard>
       </div>
+    </div>
+  )
+}
+
+// =============================================
+// TAB: CLIENTES
+// =============================================
+function TabClientes({ data, metrics }) {
+  const [filtroVendedora, setFiltroVendedora] = useState('Todas')
+  const [filtroTermometro, setFiltroTermometro] = useState('Todos')
+
+  const clientes = data.clientesAtivos || []
+  const vendedoras = [...new Set(clientes.map(c => c.responsavel))].filter(Boolean)
+
+  const clientesFiltrados = clientes.filter(c => {
+    if (filtroVendedora !== 'Todas' && c.responsavel !== filtroVendedora) return false
+    if (filtroTermometro !== 'Todos' && c.termometro !== filtroTermometro) return false
+    return true
+  }).sort((a, b) => b.vendido - a.vendido)
+
+  const termometroColors = { Quente: '#ef4444', Morno: '#f59e0b', Frio: '#3b82f6' }
+  const totalCotado = clientesFiltrados.reduce((s, c) => s + c.valorCotado, 0)
+  const totalVendido = clientesFiltrados.reduce((s, c) => s + c.vendido, 0)
+  const convGeral = totalCotado > 0 ? Math.round((totalVendido / totalCotado) * 100) : 0
+
+  return (
+    <div className="space-y-8">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KPICard label="Clientes Ativos" value={clientes.length} icon={Users} color="cyan" />
+        <KPICard label="Valor Cotado" value={fmtCurrencyShort(totalCotado)} icon={Layers} color="amber" />
+        <KPICard label="Valor Vendido" value={fmtCurrencyShort(totalVendido)} icon={DollarSign} color="emerald" />
+        <KPICard label="Conversao Geral" value={`${convGeral}%`} icon={Target} color="violet" />
+      </div>
+
+      {/* Tabela de clientes */}
+      <GlassCard>
+        <div className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <SectionTitle icon={Users} description="Carteira ativa com indicadores">Clientes</SectionTitle>
+            <div className="flex items-center gap-3">
+              <select
+                value={filtroVendedora}
+                onChange={e => setFiltroVendedora(e.target.value)}
+                className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-white/70 focus:outline-none focus:border-cyan-500/50"
+              >
+                <option value="Todas">Todas vendedoras</option>
+                {vendedoras.map(v => <option key={v} value={v}>{v.split(' ')[0]}</option>)}
+              </select>
+              <select
+                value={filtroTermometro}
+                onChange={e => setFiltroTermometro(e.target.value)}
+                className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-white/70 focus:outline-none focus:border-cyan-500/50"
+              >
+                <option value="Todos">Todos termometros</option>
+                <option value="Quente">Quente</option>
+                <option value="Morno">Morno</option>
+                <option value="Frio">Frio</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 mb-4">
+            <Badge variant="info">{clientesFiltrados.length} cliente{clientesFiltrados.length !== 1 ? 's' : ''}</Badge>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Cliente</th>
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Perfil</th>
+                  <th className="text-center py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Termometro</th>
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Responsavel</th>
+                  <th className="text-center py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Deals</th>
+                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Cotado</th>
+                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Vendido</th>
+                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Conv.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clientesFiltrados.map((c, i) => (
+                  <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-3 text-white/80 font-medium">{c.cliente}</td>
+                    <td className="py-3 px-3 text-white/50">{c.perfil}</td>
+                    <td className="py-3 px-3 text-center">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${termometroColors[c.termometro]}20`, color: termometroColors[c.termometro] }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: termometroColors[c.termometro] }} />
+                        {c.termometro}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-white/50">{c.responsavel.split(' ')[0]}</td>
+                    <td className="py-3 px-3 text-center text-white/60">{c.numDeals}</td>
+                    <td className="py-3 px-3 text-right text-white/50">{fmtCurrency(c.valorCotado)}</td>
+                    <td className="py-3 px-3 text-right font-medium text-white/80">{fmtCurrency(c.vendido)}</td>
+                    <td className="py-3 px-3 text-right">
+                      <span className={`text-sm font-semibold ${c.conversao >= 60 ? 'text-emerald-400' : c.conversao >= 40 ? 'text-amber-400' : 'text-white/30'}`}>{c.conversao}%</span>
+                    </td>
+                  </tr>
+                ))}
+                {clientesFiltrados.length === 0 && (
+                  <tr><td colSpan={8} className="py-8 text-center text-white/20 text-sm">Nenhum cliente encontrado</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </GlassCard>
     </div>
   )
 }
