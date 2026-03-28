@@ -1,127 +1,340 @@
 // Vercel Serverless Function — GET /api/sheets
-// Busca dados da Google Sheets publica (ou com API key) e retorna JSON formatado
-// A planilha deve ter as abas: "Deals", "Historico", "Metas"
+// Busca dados REAIS do Pipedrive (Pipeline 7 — Funil Oportunidade) e retorna JSON formatado
+// Fallback para dados demo se PIPEDRIVE_API_KEY nao estiver configurada
 
-const SHEET_ID = process.env.GOOGLE_SHEET_ID
-const API_KEY = process.env.GOOGLE_SHEETS_API_KEY
+const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY
+const PIPELINE_ID = 7
 
-async function fetchSheet(sheetName) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}?key=${API_KEY}`
-  const res = await fetch(url)
+// Mapeamento de stages do Pipeline 7
+const STAGES = {
+  64: 'BUGS',
+  54: 'Pedido de Cotacao',
+  55: 'Em Negociacao',
+  80: 'BID',
+  56: 'Proposta Aprovada'
+}
+
+// Stages que aparecem no funil do dashboard (exclui BUGS)
+const FUNIL_STAGES = [54, 55, 80, 56]
+const FUNIL_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'BID', 'Proposta Aprovada']
+
+// Mapeamento de users
+const USERS = {
+  24188122: 'Tayna Kazial',
+  24588753: 'Gabrieli Muneretto',
+  23289334: 'Laurence Tataren'
+}
+
+// Mapeamento de tipos de atividade para categorias do dashboard
+const ACTIVITY_MAP = {
+  'call': 'ligacoes',
+  'email': 'emails',
+  'whatsapp_': 'whatsapp',
+  'meeting': 'reunioes',
+  'reuniao_realizada_': 'reunioes',
+  'pedido_cotacao_': 'propostas',
+  'follow_up_de_negociacao_hu': 'followups',
+  'follow_up_de_cotacao_farme': 'followups',
+  'follow_up_de_agendamento_d': 'followups',
+  'tentativa_agendamento_de_r': 'ligacoes'
+}
+
+// ========== PIPEDRIVE API HELPERS ==========
+
+async function pipedriveFetch(endpoint, params = {}) {
+  const url = new URL(`https://api.pipedrive.com/v1/${endpoint}`)
+  url.searchParams.set('api_token', PIPEDRIVE_API_KEY)
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
+
+  const res = await fetch(url.toString())
   if (!res.ok) {
-    throw new Error(`Erro ao buscar aba "${sheetName}": ${res.status} ${res.statusText}`)
+    throw new Error(`Pipedrive API error: ${res.status} ${res.statusText} on ${endpoint}`)
   }
-  const data = await res.json()
-  return data.values || []
+  return res.json()
 }
 
-function parseRows(rows) {
-  if (!rows || rows.length < 2) return []
-  const headers = rows[0].map(h => h.trim().toLowerCase().replace(/\s+/g, '_'))
-  return rows.slice(1).map(row => {
-    const obj = {}
-    headers.forEach((h, i) => {
-      obj[h] = row[i] || ''
-    })
-    return obj
+async function fetchAllPages(endpoint, params = {}, filterFn = null) {
+  let allData = []
+  let start = 0
+  const limit = 100
+
+  while (true) {
+    const result = await pipedriveFetch(endpoint, { ...params, start: String(start), limit: String(limit) })
+    if (!result.data) break
+
+    const items = filterFn ? result.data.filter(filterFn) : result.data
+    allData = allData.concat(items)
+
+    if (!result.additional_data?.pagination?.more_items_in_collection) break
+    start = result.additional_data.pagination.next_start
+  }
+
+  return allData
+}
+
+// ========== DATA FETCHING ==========
+
+async function fetchOpenDeals() {
+  // Busca deals abertos de cada stage do Pipeline 7
+  const allDeals = []
+  for (const stageId of FUNIL_STAGES) {
+    const deals = await fetchAllPages(`stages/${stageId}/deals`, { status: 'open' })
+    allDeals.push(...deals)
+  }
+  return allDeals
+}
+
+async function fetchWonDeals() {
+  // Busca todos os won deals e filtra por pipeline_id === 7
+  const deals = await fetchAllPages('deals', { status: 'won' }, d => d.pipeline_id === PIPELINE_ID)
+  return deals
+}
+
+async function fetchLostDeals() {
+  // Busca todos os lost deals e filtra por pipeline_id === 7
+  const deals = await fetchAllPages('deals', { status: 'lost' }, d => d.pipeline_id === PIPELINE_ID)
+  return deals
+}
+
+async function fetchActivities(startDate, endDate) {
+  // Busca atividades no periodo
+  const activities = await fetchAllPages('activities', {
+    start_date: startDate,
+    end_date: endDate,
+    done: '1'
   })
+  return activities
 }
 
-function parseCurrency(val) {
-  if (!val) return 0
-  return parseFloat(String(val).replace(/[R$\s.]/g, '').replace(',', '.')) || 0
+// ========== DATA PROCESSING ==========
+
+function getUserName(deal) {
+  // user_id pode ser number ou object dependendo do endpoint
+  if (typeof deal.user_id === 'object' && deal.user_id?.name) return deal.user_id.name
+  if (typeof deal.user_id === 'number') return USERS[deal.user_id] || deal.owner_name || 'Desconhecido'
+  return deal.owner_name || 'Desconhecido'
 }
 
-function formatData(deals, historico, metas) {
-  const openDeals = deals
-    .filter(d => d.status === 'open')
-    .map(d => ({
-      id: d.id,
-      titulo: d.titulo || d.title,
-      valor: parseCurrency(d.valor),
-      estagio: d.estagio || d.stage,
-      vendedora: d.vendedora || d.owner,
-      empresa: d.empresa || d.org,
-      dataCriacao: d.data_criacao || d.created,
-      dataAtualizacao: d.data_atualizacao || d.updated
-    }))
+function getOrgName(deal) {
+  if (typeof deal.org_id === 'object' && deal.org_id?.name) return deal.org_id.name
+  return deal.org_name || ''
+}
 
-  const wonDeals = deals
-    .filter(d => d.status === 'won')
-    .map(d => ({
-      id: d.id,
-      titulo: d.titulo || d.title,
-      valor: parseCurrency(d.valor),
-      vendedora: d.vendedora || d.owner,
-      empresa: d.empresa || d.org,
-      dataGanho: d.data_ganho || d.won_date,
-      mes: d.mes || d.month
-    }))
+function getStageName(stageId) {
+  return STAGES[stageId] || `Stage ${stageId}`
+}
 
-  const lostDeals = deals
-    .filter(d => d.status === 'lost')
-    .map(d => ({
-      id: d.id,
-      titulo: d.titulo || d.title,
-      valor: parseCurrency(d.valor),
-      vendedora: d.vendedora || d.owner,
-      motivo: d.motivo_perda || d.lost_reason,
-      mes: d.mes || d.month
-    }))
+function getMonthKey(dateStr) {
+  if (!dateStr) return null
+  return dateStr.substring(0, 7) // "2026-03"
+}
 
-  const historicoMensal = historico.map(h => ({
-    mes: h.mes || h.month,
-    won_count: parseInt(h.won_count) || 0,
-    won_value: parseCurrency(h.won_value || h.valor_ganho),
-    lost_count: parseInt(h.lost_count) || 0,
-    lost_value: parseCurrency(h.lost_value || h.valor_perdido),
-    new_count: parseInt(h.new_count || h.novos) || 0,
-    conversion_rate: parseFloat(h.conversion_rate || h.taxa_conversao) || 0,
-    ticket_medio: parseCurrency(h.ticket_medio),
-    ciclo_medio_dias: parseInt(h.ciclo_medio_dias) || 0
+function processOpenDeals(deals) {
+  return deals.map(d => ({
+    id: String(d.id),
+    titulo: d.title || '',
+    valor: d.value || 0,
+    estagio: getStageName(d.stage_id),
+    vendedora: getUserName(d),
+    empresa: getOrgName(d),
+    dataCriacao: d.add_time ? d.add_time.substring(0, 10) : '',
+    dataAtualizacao: d.update_time ? d.update_time.substring(0, 10) : ''
   }))
+}
 
-  const metasMensal = metas.map(m => ({
-    mes: m.mes || m.month,
-    meta_valor: parseCurrency(m.meta_valor || m.target),
-    meta_deals: parseInt(m.meta_deals || m.target_deals) || 0
+function processWonDeals(deals, mesAtual) {
+  return deals.map(d => ({
+    id: String(d.id),
+    titulo: d.title || '',
+    valor: d.value || 0,
+    vendedora: getUserName(d),
+    empresa: getOrgName(d),
+    dataGanho: d.won_time ? d.won_time.substring(0, 10) : '',
+    mes: getMonthKey(d.won_time) || mesAtual
   }))
+}
 
+function processLostDeals(deals, mesAtual) {
+  return deals.map(d => ({
+    id: String(d.id),
+    titulo: d.title || '',
+    valor: d.value || 0,
+    vendedora: getUserName(d),
+    motivo: d.lost_reason || 'Sem motivo',
+    mes: getMonthKey(d.lost_time) || mesAtual
+  }))
+}
+
+function buildFunil(openDeals) {
   const stages = {}
   openDeals.forEach(d => {
-    if (!stages[d.estagio]) stages[d.estagio] = { nome: d.estagio, count: 0, valor: 0 }
-    stages[d.estagio].count++
-    stages[d.estagio].valor += d.valor
+    const s = d.estagio
+    if (s === 'BUGS') return // Exclui BUGS do funil
+    if (!stages[s]) stages[s] = { nome: s, count: 0, valor: 0 }
+    stages[s].count++
+    stages[s].valor += d.valor
   })
+  // Ordenar conforme FUNIL_ORDER
+  return FUNIL_ORDER
+    .map(nome => stages[nome])
+    .filter(Boolean)
+}
 
+function buildPerformance(wonDeals, mesAtual) {
+  const wonMesAtual = wonDeals.filter(d => d.mes === mesAtual)
   const porVendedora = {}
-  wonDeals.forEach(d => {
-    if (!porVendedora[d.vendedora]) porVendedora[d.vendedora] = { nome: d.vendedora, count: 0, valor: 0 }
-    porVendedora[d.vendedora].count++
-    porVendedora[d.vendedora].valor += d.valor
+  wonMesAtual.forEach(d => {
+    const v = d.vendedora
+    if (!porVendedora[v]) porVendedora[v] = { nome: v, count: 0, valor: 0 }
+    porVendedora[v].count++
+    porVendedora[v].valor += d.valor
   })
+  return Object.values(porVendedora)
+}
 
+function buildMotivosPerda(lostDeals, mesAtual) {
+  const lostMesAtual = lostDeals.filter(d => d.mes === mesAtual)
   const motivos = {}
-  lostDeals.forEach(d => {
+  lostMesAtual.forEach(d => {
     const m = d.motivo || 'Sem motivo'
     if (!motivos[m]) motivos[m] = { motivo: m, count: 0 }
     motivos[m].count++
   })
-
-  return {
-    timestamp: new Date().toISOString(),
-    openDeals,
-    wonDeals,
-    lostDeals,
-    funil: Object.values(stages),
-    performanceVendedoras: Object.values(porVendedora),
-    motivosPerda: Object.values(motivos).sort((a, b) => b.count - a.count),
-    historicoMensal,
-    metas: metasMensal
-  }
+  return Object.values(motivos).sort((a, b) => b.count - a.count)
 }
 
+function buildHistoricoMensal(wonDeals, lostDeals, openDeals) {
+  // Agrupa por mes (ultimos 6 meses)
+  const meses = {}
+  const now = new Date()
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    meses[key] = { mes: key, won_count: 0, won_value: 0, lost_count: 0, lost_value: 0, new_count: 0, conversion_rate: 0, ticket_medio: 0, ciclo_medio_dias: 0 }
+  }
+
+  wonDeals.forEach(d => {
+    const m = d.mes
+    if (meses[m]) {
+      meses[m].won_count++
+      meses[m].won_value += d.valor
+    }
+  })
+
+  lostDeals.forEach(d => {
+    const m = d.mes
+    if (meses[m]) {
+      meses[m].lost_count++
+      meses[m].lost_value += d.valor
+    }
+  })
+
+  // Calcula metricas derivadas
+  Object.values(meses).forEach(m => {
+    const total = m.won_count + m.lost_count
+    m.conversion_rate = total > 0 ? Math.round((m.won_count / total) * 1000) / 10 : 0
+    m.ticket_medio = m.won_count > 0 ? Math.round(m.won_value / m.won_count) : 0
+  })
+
+  return Object.values(meses)
+}
+
+function buildAtividades(activities) {
+  // Agrupa atividades por user
+  const byUser = {}
+
+  activities.forEach(a => {
+    const userId = a.user_id
+    const userName = USERS[userId]
+    if (!userName) return // Ignora users que nao sao vendedoras
+
+    if (!byUser[userName]) {
+      byUser[userName] = { vendedora: userName, ligacoes: 0, emails: 0, whatsapp: 0, reunioes: 0, propostas: 0, followups: 0 }
+    }
+
+    const categoria = ACTIVITY_MAP[a.type] || 'followups'
+    byUser[userName][categoria]++
+  })
+
+  return Object.values(byUser)
+}
+
+function buildClientesAtivos(openDeals, wonDeals, lostDeals) {
+  // Agrupa todos os deals por organizacao
+  const byOrg = {}
+
+  const processDeal = (d, status) => {
+    const org = d.empresa || d.titulo
+    if (!org) return
+    if (!byOrg[org]) {
+      byOrg[org] = {
+        cliente: org,
+        perfil: 'Cliente',
+        responsavel: d.vendedora,
+        numDeals: 0,
+        valorCotado: 0,
+        vendido: 0,
+        wonCount: 0,
+        lostCount: 0,
+        openCount: 0
+      }
+    }
+    byOrg[org].numDeals++
+    byOrg[org].valorCotado += d.valor
+    if (status === 'won') {
+      byOrg[org].vendido += d.valor
+      byOrg[org].wonCount++
+    }
+    if (status === 'lost') byOrg[org].lostCount++
+    if (status === 'open') byOrg[org].openCount++
+    // Atualiza responsavel se houver
+    if (d.vendedora && d.vendedora !== 'Desconhecido') {
+      byOrg[org].responsavel = d.vendedora
+    }
+  }
+
+  openDeals.forEach(d => processDeal(d, 'open'))
+  wonDeals.forEach(d => processDeal(d, 'won'))
+  lostDeals.forEach(d => processDeal(d, 'lost'))
+
+  // Calcula termometro e conversao
+  return Object.values(byOrg)
+    .map(c => {
+      const conversao = c.valorCotado > 0 ? Math.round((c.vendido / c.valorCotado) * 100) : 0
+      let termometro = 'Frio'
+      if (c.openCount > 0 && c.wonCount > 0) termometro = 'Quente'
+      else if (c.openCount > 0 || c.wonCount > 0) termometro = 'Morno'
+
+      return {
+        cliente: c.cliente,
+        perfil: c.perfil,
+        termometro,
+        responsavel: c.responsavel,
+        numDeals: c.numDeals,
+        valorCotado: c.valorCotado,
+        vendido: c.vendido,
+        conversao
+      }
+    })
+    .sort((a, b) => b.valorCotado - a.valorCotado)
+    .slice(0, 30) // Top 30 clientes
+}
+
+// Metas (hardcoded por enquanto, pode migrar para planilha depois)
+function getMetas() {
+  return [
+    { mes: '2026-01', meta_valor: 800000, meta_deals: 50 },
+    { mes: '2026-02', meta_valor: 850000, meta_deals: 52 },
+    { mes: '2026-03', meta_valor: 400000, meta_deals: 25 },
+    { mes: '2026-04', meta_valor: 500000, meta_deals: 30 }
+  ]
+}
+
+// ========== MAIN HANDLER ==========
+
 export default async function handler(req, res) {
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -134,30 +347,58 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  if (!SHEET_ID || !API_KEY) {
+  // Modo demo (sem Pipedrive API key configurada)
+  if (!PIPEDRIVE_API_KEY) {
     return res.status(200).json(getDemoData())
   }
 
   try {
-    const [dealsRows, historicoRows, metasRows] = await Promise.all([
-      fetchSheet('Deals'),
-      fetchSheet('Historico'),
-      fetchSheet('Metas')
+    const now = new Date()
+    const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const startOfMonth = `${mesAtual}-01`
+    const endOfMonth = `${mesAtual}-31`
+
+    // Busca dados em paralelo
+    const [rawOpen, rawWon, rawLost, rawActivities] = await Promise.all([
+      fetchOpenDeals(),
+      fetchWonDeals(),
+      fetchLostDeals(),
+      fetchActivities(startOfMonth, endOfMonth)
     ])
 
-    const deals = parseRows(dealsRows)
-    const historico = parseRows(historicoRows)
-    const metas = parseRows(metasRows)
+    // Processa dados
+    const openDeals = processOpenDeals(rawOpen)
+    const wonDeals = processWonDeals(rawWon, mesAtual)
+    const lostDeals = processLostDeals(rawLost, mesAtual)
+    const atividades = buildAtividades(rawActivities)
+    const clientesAtivos = buildClientesAtivos(openDeals, wonDeals, lostDeals)
 
-    const data = formatData(deals, historico, metas)
+    const data = {
+      timestamp: now.toISOString(),
+      demo: false,
+      openDeals,
+      wonDeals: wonDeals.filter(d => d.mes === mesAtual),
+      lostDeals: lostDeals.filter(d => d.mes === mesAtual),
+      funil: buildFunil(openDeals),
+      performanceVendedoras: buildPerformance(wonDeals, mesAtual),
+      motivosPerda: buildMotivosPerda(lostDeals, mesAtual),
+      historicoMensal: buildHistoricoMensal(wonDeals, lostDeals, openDeals),
+      metas: getMetas(),
+      atividades,
+      clientesAtivos
+    }
 
+    // Cache 5 minutos
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
     return res.status(200).json(data)
   } catch (error) {
-    console.error('Erro ao buscar dados:', error)
-    return res.status(500).json({ error: error.message })
+    console.error('Erro ao buscar dados do Pipedrive:', error)
+    // Fallback para demo em caso de erro
+    return res.status(200).json({ ...getDemoData(), error: error.message, fallback: true })
   }
 }
+
+// ========== DEMO DATA (fallback) ==========
 
 function getDemoData() {
   const now = new Date()
