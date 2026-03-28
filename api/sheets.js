@@ -379,18 +379,9 @@ export default async function handler(req, res) {
     const atividades = buildAtividades(rawActivities)
     const clientesAtivos = buildClientesAtivos(openDeals, wonDeals, lostDeals)
 
-    // DEBUG: sample raw deals for inspection
-      const debugSample = {
-        rawLost0: rawLost[0] ? { lost_time: rawLost[0].lost_time, close_time: rawLost[0].close_time, update_time: rawLost[0].update_time, won_time: rawLost[0].won_time, status: rawLost[0].status, keys: Object.keys(rawLost[0]).filter(k => k.includes('time') || k.includes('date') || k.includes('close') || k.includes('lost') || k.includes('won')) } : null,
-        rawWon0: rawWon[0] ? { won_time: rawWon[0].won_time, close_time: rawWon[0].close_time, update_time: rawWon[0].update_time, lost_time: rawWon[0].lost_time, status: rawWon[0].status, keys: Object.keys(rawWon[0]).filter(k => k.includes('time') || k.includes('date') || k.includes('close') || k.includes('lost') || k.includes('won')) } : null,
-        totalRawLost: rawLost.length,
-        totalRawWon: rawWon.length
-      }
-
-      const data = {
+          const data = {
       timestamp: now.toISOString(),
       demo: false,
-      _debug: debugSample,
       openDeals,
       wonDeals: wonDeals.filter(d => d.mes === mesAtual),
       lostDeals: lostDeals.filter(d => d.mes === mesAtual),
