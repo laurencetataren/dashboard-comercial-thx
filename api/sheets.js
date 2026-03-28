@@ -238,6 +238,6 @@ function getDemoData() {
       { cliente: 'Theta Freight', perfil: 'Embarcador', termometro: 'Frio', responsavel: 'Gabrieli Muneretto', numDeals: 1, valorCotado: 43000, vendido: 0, conversao: 0 },
       { cliente: 'Iota Rodoviario', perfil: 'Transportadora', termometro: 'Quente', responsavel: 'Tayna Kazial', numDeals: 3, valorCotado: 195000, vendido: 142000, conversao: 73 },
       { cliente: 'Kappa Express', perfil: 'Operador Logistico', termometro: 'Morno', responsavel: 'Gabrieli Muneretto', numDeals: 2, valorCotado: 190000, vendido: 95000, conversao: 50 }
-    ]    ]
+    ]
   }
 }
