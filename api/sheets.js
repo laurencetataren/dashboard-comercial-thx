@@ -222,6 +222,22 @@ function getDemoData() {
       { mes: '2026-02', meta_valor: 850000, meta_deals: 52 },
       { mes: '2026-03', meta_valor: 400000, meta_deals: 25 },
       { mes: '2026-04', meta_valor: 500000, meta_deals: 30 }
-    ]
+,
+    atividades: [
+      { vendedora: 'Tayna Kazial', ligacoes: 87, emails: 124, reunioes: 12, propostas: 18, followups: 45, whatsapp: 156 },
+      { vendedora: 'Gabrieli Muneretto', ligacoes: 63, emails: 98, reunioes: 8, propostas: 14, followups: 32, whatsapp: 112 }
+    ],
+    clientesAtivos: [
+      { cliente: 'Alpha Logistica', perfil: 'Transportadora', termometro: 'Quente', responsavel: 'Tayna Kazial', numDeals: 3, valorCotado: 135000, vendido: 85000, conversao: 63 },
+      { cliente: 'Beta Industria', perfil: 'Embarcador', termometro: 'Morno', responsavel: 'Gabrieli Muneretto', numDeals: 2, valorCotado: 156000, vendido: 78000, conversao: 50 },
+      { cliente: 'Gamma Express', perfil: 'Transportadora', termometro: 'Frio', responsavel: 'Tayna Kazial', numDeals: 1, valorCotado: 32000, vendido: 0, conversao: 0 },
+      { cliente: 'Delta Corp', perfil: 'Embarcador', termometro: 'Quente', responsavel: 'Gabrieli Muneretto', numDeals: 4, valorCotado: 280000, vendido: 189000, conversao: 68 },
+      { cliente: 'Epsilon Cargo', perfil: 'Transportadora', termometro: 'Morno', responsavel: 'Tayna Kazial', numDeals: 2, valorCotado: 110000, vendido: 55000, conversao: 50 },
+      { cliente: 'Zeta Log', perfil: 'Operador Logistico', termometro: 'Quente', responsavel: 'Gabrieli Muneretto', numDeals: 5, valorCotado: 360000, vendido: 240000, conversao: 67 },
+      { cliente: 'Eta Transportes', perfil: 'Transportadora', termometro: 'Morno', responsavel: 'Tayna Kazial', numDeals: 2, valorCotado: 134000, vendido: 67000, conversao: 50 },
+      { cliente: 'Theta Freight', perfil: 'Embarcador', termometro: 'Frio', responsavel: 'Gabrieli Muneretto', numDeals: 1, valorCotado: 43000, vendido: 0, conversao: 0 },
+      { cliente: 'Iota Rodoviario', perfil: 'Transportadora', termometro: 'Quente', responsavel: 'Tayna Kazial', numDeals: 3, valorCotado: 195000, vendido: 142000, conversao: 73 },
+      { cliente: 'Kappa Express', perfil: 'Operador Logistico', termometro: 'Morno', responsavel: 'Gabrieli Muneretto', numDeals: 2, valorCotado: 190000, vendido: 95000, conversao: 50 }
+    ]    ]
   }
 }
