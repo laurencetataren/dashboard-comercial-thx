@@ -65,7 +65,7 @@ function computeMetrics(data) {
   const trendValor = mesAnteriorData ? ((totalWonValor - mesAnteriorData.won_value) / mesAnteriorData.won_value) * 100 : 0
   const trendConversao = mesAnteriorData ? taxaConversao - mesAnteriorData.conversion_rate : 0
 
-  const STAGE_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'Proposta Aprovada']
+  const STAGE_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'BID', 'Proposta Aprovada']
   const funil = STAGE_ORDER.map(nome => {
     const stage = data.funil?.find(f => f.nome === nome) || { nome, count: 0, valor: 0 }
     return stage
