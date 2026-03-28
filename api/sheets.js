@@ -222,7 +222,7 @@ function getDemoData() {
       { mes: '2026-02', meta_valor: 850000, meta_deals: 52 },
       { mes: '2026-03', meta_valor: 400000, meta_deals: 25 },
       { mes: '2026-04', meta_valor: 500000, meta_deals: 30 }
-,
+    ],
     atividades: [
       { vendedora: 'Tayna Kazial', ligacoes: 87, emails: 124, reunioes: 12, propostas: 18, followups: 45, whatsapp: 156 },
       { vendedora: 'Gabrieli Muneretto', ligacoes: 63, emails: 98, reunioes: 8, propostas: 14, followups: 32, whatsapp: 112 }
