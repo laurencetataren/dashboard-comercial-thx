@@ -169,7 +169,7 @@ function getDemoData() {
     openDeals: [
       { id: '1', titulo: 'Transportadora Alpha', valor: 45000, estagio: 'Pedido de Cotacao', vendedora: 'Tayna Kazial', empresa: 'Alpha Logistica', dataCriacao: '2026-03-10' },
       { id: '2', titulo: 'Embarcador Beta', valor: 78000, estagio: 'Em Negociacao', vendedora: 'Gabrieli Muneretto', empresa: 'Beta Industria', dataCriacao: '2026-03-05' },
-      { id: '3', titulo: 'Logistica Gamma', valor: 32000, estagio: 'BID', vendedora: 'Tayna Kazial', empresa: 'Gamma Express', dataCriacao: '2026-03-15' },
+      { id: '3', titulo: 'Logistica Gamma', valor: 32000, estagio: 'Em Negociacao', vendedora: 'Tayna Kazial', empresa: 'Gamma Express', dataCriacao: '2026-03-15' },
       { id: '4', titulo: 'Frete Delta Corp', valor: 91000, estagio: 'Proposta Aprovada', vendedora: 'Gabrieli Muneretto', empresa: 'Delta Corp', dataCriacao: '2026-02-28' },
       { id: '5', titulo: 'Rodoviario Epsilon', valor: 55000, estagio: 'Em Negociacao', vendedora: 'Tayna Kazial', empresa: 'Epsilon Cargo', dataCriacao: '2026-03-12' },
       { id: '6', titulo: 'Transporte Zeta', valor: 120000, estagio: 'Em Negociacao', vendedora: 'Gabrieli Muneretto', empresa: 'Zeta Log', dataCriacao: '2026-03-20' },
@@ -196,8 +196,7 @@ function getDemoData() {
     ],
     funil: [
       { nome: 'Pedido de Cotacao', count: 2, valor: 112000 },
-      { nome: 'Em Negociacao', count: 4, valor: 296000 },
-      { nome: 'BID', count: 1, valor: 32000 },
+      { nome: 'Em Negociacao', count: 5, valor: 328000 },
       { nome: 'Proposta Aprovada', count: 1, valor: 91000 }
     ],
     performanceVendedoras: [
