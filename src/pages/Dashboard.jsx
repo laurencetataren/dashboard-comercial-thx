@@ -27,7 +27,6 @@ const TABS = [
 const STAGE_COLORS = {
   'Pedido de Cotacao': '#f59e0b',
   'Em Negociacao': '#06b6d4',
-  'BID': '#8b5cf6',
   'Proposta Aprovada': '#10b981',
 }
 
@@ -329,51 +328,81 @@ function TabVisaoGeral({ data, metrics }) {
 // TAB: FUNIL
 // =============================================
 function TabFunil({ data, metrics }) {
-  const totalFunil = metrics.totalFunilCount || 1
+  const [filtroVendedora, setFiltroVendedora] = useState('Todas')
+  const [filtroEstagio, setFiltroEstagio] = useState('Todos')
+
+  const stages = metrics.funil || []
+  const totalDeals = stages.reduce((s, f) => s + f.count, 0)
+  const totalValor = stages.reduce((s, f) => s + f.valor, 0)
+
+  // Vendedoras unicas
+  const vendedoras = [...new Set((data.openDeals || []).map(d => d.vendedora))].filter(Boolean)
+
+  // Deals filtrados
+  const dealsFiltrados = (data.openDeals || []).filter(d => {
+    if (filtroVendedora !== 'Todas' && d.vendedora !== filtroVendedora) return false
+    if (filtroEstagio !== 'Todos' && d.estagio !== filtroEstagio) return false
+    return true
+  }).sort((a, b) => (b.valor || 0) - (a.valor || 0))
+
+  const stageColors = ['#f59e0b', '#06b6d4', '#10b981']
 
   return (
     <div className="space-y-8">
       {/* KPIs funil */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard label="Deals no Funil" value={metrics.totalFunilCount} icon={Layers} color="cyan" />
-        <KPICard label="Valor Total Funil" value={fmtCurrencyShort(metrics.totalFunilValor)} icon={DollarSign} color="emerald" />
-        <KPICard label="Ticket Medio Funil" value={fmtCurrencyShort(metrics.totalFunilCount > 0 ? metrics.totalFunilValor / metrics.totalFunilCount : 0)} icon={Zap} color="violet" />
-        <KPICard label="Estagios Ativos" value={metrics.funil.filter(f => f.count > 0).length} subtitle={`de ${metrics.funil.length} estagios`} icon={Funnel} color="amber" />
+        <KPICard label="Deals no Funil" value={totalDeals} icon={Layers} color="cyan" />
+        <KPICard label="Valor Total Funil" value={fmtCurrencyShort(totalValor)} icon={DollarSign} color="emerald" />
+        <KPICard label="Ticket Medio" value={fmtCurrencyShort(totalDeals > 0 ? totalValor / totalDeals : 0)} icon={Zap} color="violet" />
+        <KPICard label="Taxa Conversao" value={fmtPct(metrics.taxaConversao, 0)} subtitle="Won / (Won+Lost)" icon={TrendingUp} color="amber" />
       </div>
 
-      {/* Funil visual */}
+      {/* Funil visual 3 estagios */}
       <GlassCard>
         <div className="p-6">
-          <SectionTitle icon={Funnel} description="Pipeline 7: Funil de Oportunidades">Funil de Vendas</SectionTitle>
-          <div className="space-y-3 mt-6">
-            {metrics.funil.map((stage, i) => {
-              const pct = totalFunil > 0 ? (stage.count / totalFunil) * 100 : 0
-              const maxVal = Math.max(...metrics.funil.map(f => f.valor), 1)
-              const barPct = (stage.valor / maxVal) * 100
-              const color = STAGE_COLORS[stage.nome] || '#06b6d4'
+          <SectionTitle icon={Funnel} description="Pipeline 7 | Funil de Oportunidades">Funil de Vendas</SectionTitle>
+          <div className="flex items-stretch justify-center gap-2 md:gap-4 mt-8 mb-4">
+            {stages.map((stage, i) => {
+              const color = stageColors[i] || '#06b6d4'
+              const pctDeals = totalDeals > 0 ? Math.round((stage.count / totalDeals) * 100) : 0
 
               return (
-                <div key={stage.nome} className="group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0" style={{ background: `${color}20`, color }}>
-                      {i + 1}
+                <div key={stage.nome} className="flex items-center gap-2 md:gap-3 flex-1">
+                  {/* Stage card */}
+                  <div
+                    className="relative flex-1 rounded-2xl border border-white/[0.06] p-4 md:p-6 text-center transition-all hover:scale-[1.02] hover:border-white/10 cursor-default"
+                    style={{ background: `linear-gradient(135deg, ${color}12, ${color}06)` }}
+                  >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: `${color}20` }}>
+                      <span className="text-lg font-bold" style={{ color }}>{i + 1}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-white/80">{stage.nome}</span>
-                          <Badge variant="info">{stage.count} {stage.count === 1 ? 'deal' : 'deals'}</Badge>
-                        </div>
-                        <span className="text-sm font-semibold" style={{ color }}>{fmtCurrency(stage.valor)}</span>
-                      </div>
-                      <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${Math.max(barPct, 2)}%`, background: `linear-gradient(90deg, ${color}, ${color}88)` }}
-                        />
-                      </div>
+                    <p className="text-[11px] uppercase tracking-wider text-white/40 mb-1">{stage.nome}</p>
+                    <p className="text-3xl font-bold text-white mb-1">{stage.count}</p>
+                    <p className="text-sm font-semibold" style={{ color }}>{fmtCurrency(stage.valor)}</p>
+                    <div className="mt-3 flex items-center justify-center gap-1.5">
+                      <div className="h-1.5 rounded-full" style={{ width: `${Math.max(pctDeals, 8)}%`, background: color, maxWidth: '80%', minWidth: '12px' }} />
+                      <span className="text-[10px] text-white/30">{pctDeals}%</span>
                     </div>
                   </div>
+                  {/* Seta entre estagios */}
+                  {i < stages.length - 1 && (
+                    <div className="flex flex-col items-center justify-center shrink-0">
+                      <ChevronRight className="w-5 h-5 text-white/20" />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {/* Conversao entre estagios */}
+          <div className="flex justify-center gap-16 mt-2">
+            {stages.length > 1 && stages.slice(0, -1).map((stage, i) => {
+              const next = stages[i + 1]
+              const convPct = stage.count > 0 ? Math.round((next.count / stage.count) * 100) : 0
+              return (
+                <div key={i} className="text-center">
+                  <span className="text-[10px] text-white/25">{stage.nome.split(' ')[0]} \u2192 {next.nome.split(' ')[0]}</span>
+                  <p className="text-xs font-semibold text-white/50">{convPct}% conv.</p>
                 </div>
               )
             })}
@@ -381,11 +410,47 @@ function TabFunil({ data, metrics }) {
         </div>
       </GlassCard>
 
-      {/* Lista de deals abertos */}
+      {/* Deals com filtros */}
       <GlassCard>
         <div className="p-6">
-          <SectionTitle icon={Layers} description="Todos os deals abertos no pipeline">Deals em Andamento</SectionTitle>
-          <div className="overflow-x-auto mt-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <SectionTitle icon={Layers} description="Filtre por vendedora ou estagio">Deals em Andamento</SectionTitle>
+            <div className="flex items-center gap-3">
+              {/* Filtro vendedora */}
+              <div className="flex items-center gap-2">
+                <Users className="w-3.5 h-3.5 text-white/30" />
+                <select
+                  value={filtroVendedora}
+                  onChange={e => setFiltroVendedora(e.target.value)}
+                  className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-white/70 focus:outline-none focus:border-cyan-500/50"
+                >
+                  <option value="Todas">Todas</option>
+                  {vendedoras.map(v => <option key={v} value={v}>{v.split(' ')[0]}</option>)}
+                </select>
+              </div>
+              {/* Filtro estagio */}
+              <div className="flex items-center gap-2">
+                <Funnel className="w-3.5 h-3.5 text-white/30" />
+                <select
+                  value={filtroEstagio}
+                  onChange={e => setFiltroEstagio(e.target.value)}
+                  className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-white/70 focus:outline-none focus:border-cyan-500/50"
+                >
+                  <option value="Todos">Todos estagios</option>
+                  {stages.map(s => <option key={s.nome} value={s.nome}>{s.nome}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Badge contagem */}
+          <div className="flex items-center gap-2 mb-4">
+            <Badge variant="info">{dealsFiltrados.length} deal{dealsFiltrados.length !== 1 ? 's' : ''}</Badge>
+            <span className="text-xs text-white/30">|</span>
+            <span className="text-xs text-white/40">{fmtCurrency(dealsFiltrados.reduce((s, d) => s + (d.valor || 0), 0))} em pipeline</span>
+          </div>
+
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.06]">
@@ -397,7 +462,7 @@ function TabFunil({ data, metrics }) {
                 </tr>
               </thead>
               <tbody>
-                {(data.openDeals || []).sort((a, b) => (b.valor || 0) - (a.valor || 0)).map((deal, i) => (
+                {dealsFiltrados.map((deal, i) => (
                   <tr key={deal.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                     <td className="py-3 px-3">
                       <p className="text-white/80 font-medium">{deal.empresa || deal.titulo}</p>
@@ -416,6 +481,9 @@ function TabFunil({ data, metrics }) {
                     <td className="py-3 px-3 text-right text-white/30">{deal.dataCriacao}</td>
                   </tr>
                 ))}
+                {dealsFiltrados.length === 0 && (
+                  <tr><td colSpan={5} className="py-8 text-center text-white/20 text-sm">Nenhum deal encontrado com os filtros selecionados</td></tr>
+                )}
               </tbody>
             </table>
           </div>
