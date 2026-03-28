@@ -222,7 +222,8 @@ function getDemoData() {
     metas: [
       { mes: '2026-01', meta_valor: 800000, meta_deals: 50 },
       { mes: '2026-02', meta_valor: 850000, meta_deals: 52 },
-      { mes: '2026-03', meta_valor: 900000, meta_deals: 55 }
+      { mes: '2026-03', meta_valor: 400000, meta_deals: 25 },
+      { mes: '2026-04', meta_valor: 500000, meta_deals: 30 }
     ]
   }
 }
