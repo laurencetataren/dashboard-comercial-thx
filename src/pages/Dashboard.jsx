@@ -25,7 +25,6 @@ const TABS = [
 ]
 
 const STAGE_COLORS = {
-  'BUGS': '#ef4444',
   'Pedido de Cotacao': '#f59e0b',
   'Em Negociacao': '#06b6d4',
   'BID': '#8b5cf6',
@@ -162,38 +161,107 @@ function TabVisaoGeral({ data, metrics }) {
     conversao: h.conversion_rate
   }))
 
+  // Cor da meta: verde >= 100%, amarelo 80-99%, vermelho < 80%
+  const pctMeta = metrics.atingimentoValor
+  const metaColor = pctMeta >= 100 ? 'emerald' : pctMeta >= 80 ? 'amber' : 'rose'
+  const metaColorText = pctMeta >= 100 ? 'text-emerald-400' : pctMeta >= 80 ? 'text-amber-400' : 'text-rose-400'
+  const metaColorBg = pctMeta >= 100 ? 'from-emerald-500/10 to-emerald-500/5' : pctMeta >= 80 ? 'from-amber-500/10 to-amber-500/5' : 'from-rose-500/10 to-rose-500/5'
+  const metaColorBorder = pctMeta >= 100 ? 'border-emerald-500/20' : pctMeta >= 80 ? 'border-amber-500/20' : 'border-rose-500/20'
+  const metaStatusLabel = pctMeta >= 100 ? 'Meta batida!' : pctMeta >= 80 ? 'Quase la' : 'Atencao'
+
   return (
-    <div className="space-y-8">
-      {/* KPIs principais */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard
-          label="Vendido no Mes"
-          value={fmtCurrencyShort(metrics.totalWonValor)}
-          trend={metrics.trendValor}
-          trendLabel="vs mes anterior"
-          icon={DollarSign}
-          color="emerald"
-        />
-        <KPICard
-          label="Meta Mensal"
-          value={fmtCurrencyShort(metrics.metaValor)}
-          subtitle={`${fmtPct(metrics.atingimentoValor)} atingido`}
-          icon={Target}
-          color="cyan"
-        />
-        <KPICard
-          label="Deals Ganhos"
-          value={metrics.totalWonCount}
-          subtitle={`Meta: ${metrics.metaDeals}`}
-          icon={Award}
-          color="violet"
-        />
-        <KPICard
-          label="Deals Perdidos"
-          value={metrics.totalLostCount}
-          icon={XCircle}
-          color="rose"
-        />
+    <div className="space-y-6">
+      {/* FAIXA 1: Meta vs Vendido */}
+      <GlassCard>
+        <div className={`p-6 border-l-4 ${metaColorBorder}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${metaColorBg} flex items-center justify-center`}>
+                <Target size={20} className={metaColorText} />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Meta vs Vendido | {fmtMesFull(metrics.mesAtual)}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${pctMeta >= 100 ? 'bg-emerald-500/20 text-emerald-400' : pctMeta >= 80 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                    {metaStatusLabel}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-3xl font-bold ${metaColorText}`}>{fmtPct(pctMeta, 1)}</p>
+              <p className="text-xs text-white/30">atingimento</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 mb-4">
+            <div>
+              <p className="text-xs text-white/40 mb-1">Vendido</p>
+              <p className="text-xl font-bold text-white">{fmtCurrency(metrics.totalWonValor)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-white/40 mb-1">Meta</p>
+              <p className="text-xl font-bold text-white/60">{fmtCurrency(metrics.metaValor)}</p>
+            </div>
+          </div>
+
+          <ProgressBar value={metrics.totalWonValor} max={metrics.metaValor} color={metaColor} size="lg" />
+          <div className="flex justify-between mt-2">
+            <p className="text-xs text-white/30">Dia {metrics.diaAtual} de {metrics.diasNoMes}</p>
+            <p className="text-xs text-white/30">
+              {metrics.gapMeta > 0
+                ? `Faltam ${fmtCurrency(metrics.gapMeta)}`
+                : `Superou em ${fmtCurrency(Math.abs(metrics.gapMeta))}`
+              }
+            </p>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* FAIXA 2: Deals Ganhos / Perdidos / Abertos */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <GlassCard hover>
+          <div className="p-5 border-l-2 border-emerald-500/20">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Deals Ganhos</p>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 flex items-center justify-center">
+                <Award size={16} className="text-emerald-400" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-emerald-400 mb-1">{metrics.totalWonCount}</p>
+            <p className="text-sm text-white/50">{fmtCurrency(metrics.totalWonValor)}</p>
+          </div>
+        </GlassCard>
+
+        <GlassCard hover>
+          <div className="p-5 border-l-2 border-rose-500/20">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Deals Perdidos</p>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500/10 to-rose-500/5 flex items-center justify-center">
+                <XCircle size={16} className="text-rose-400" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-rose-400 mb-1">{metrics.totalLostCount}</p>
+            <p className="text-sm text-white/50">{fmtCurrency(metrics.totalLostValor)}</p>
+          </div>
+        </GlassCard>
+
+        <GlassCard hover>
+          <div className="p-5 border-l-2 border-cyan-500/20">
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Deals Abertos</p>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 flex items-center justify-center">
+                <Layers size={16} className="text-cyan-400" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-cyan-400 mb-1">{metrics.totalFunilCount}</p>
+            <p className="text-sm text-white/50">{fmtCurrency(metrics.totalFunilValor)}</p>
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* FAIXA 3: Ticket Medio / Taxa Conversao */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <KPICard
           label="Ticket Medio"
           value={fmtCurrencyShort(metrics.ticketMedio)}
@@ -201,7 +269,7 @@ function TabVisaoGeral({ data, metrics }) {
           color="amber"
         />
         <KPICard
-          label="Taxa Conversao"
+          label="Taxa de Conversao"
           value={fmtPct(metrics.taxaConversao)}
           trend={metrics.trendConversao}
           trendLabel="vs mes anterior"
@@ -210,32 +278,8 @@ function TabVisaoGeral({ data, metrics }) {
         />
       </div>
 
-      {/* Barra de progresso meta */}
-      <GlassCard>
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <SectionTitle icon={Target}>Progresso da Meta | {fmtMesFull(metrics.mesAtual)}</SectionTitle>
-            <div className="text-right">
-              <p className="text-xl font-bold text-emerald-400">{fmtCurrency(metrics.totalWonValor)}</p>
-              <p className="text-xs text-white/30">de {fmtCurrency(metrics.metaValor)}</p>
-            </div>
-          </div>
-          <ProgressBar value={metrics.totalWonValor} max={metrics.metaValor} color="emerald" size="lg" />
-          <div className="flex justify-between mt-3">
-            <p className="text-xs text-white/30">Dia {metrics.diaAtual} de {metrics.diasNoMes}</p>
-            <p className="text-xs text-white/30">
-              {metrics.gapMeta > 0
-                ? `Faltam ${fmtCurrency(metrics.gapMeta)} para a meta`
-                : 'Meta batida!'
-              }
-            </p>
-          </div>
-        </div>
-      </GlassCard>
-
       {/* Charts lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Evolucao mensal */}
         <GlassCard>
           <div className="p-6">
             <SectionTitle icon={BarChart3}>Evolucao Mensal</SectionTitle>
@@ -254,7 +298,6 @@ function TabVisaoGeral({ data, metrics }) {
           </div>
         </GlassCard>
 
-        {/* Taxa de conversao */}
         <GlassCard>
           <div className="p-6">
             <SectionTitle icon={TrendingUp}>Taxa de Conversao (%)</SectionTitle>
@@ -685,6 +728,10 @@ function TabProjecao({ data, metrics }) {
           </div>
         </GlassCard>
       </div>
+    </div>
+  )
+}
+iv>
     </div>
   )
 }
