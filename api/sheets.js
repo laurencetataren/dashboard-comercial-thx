@@ -143,26 +143,32 @@ function processOpenDeals(deals) {
 }
 
 function processWonDeals(deals, mesAtual) {
-  return deals.map(d => ({
-    id: String(d.id),
-    titulo: d.title || '',
-    valor: d.value || 0,
-    vendedora: getUserName(d),
-    empresa: getOrgName(d),
-    dataGanho: d.won_time ? d.won_time.substring(0, 10) : '',
-    mes: getMonthKey(d.won_time) || mesAtual
-  }))
+  return deals.map(d => {
+    const mes = getMonthKey(d.won_time) || getMonthKey(d.close_time) || getMonthKey(d.update_time) || mesAtual
+    return {
+      id: String(d.id),
+      titulo: d.title || '',
+      valor: d.value || 0,
+      vendedora: getUserName(d),
+      empresa: getOrgName(d),
+      dataGanho: (d.won_time || d.close_time || d.update_time || '').substring(0, 10),
+      mes
+    }
+  })
 }
 
 function processLostDeals(deals, mesAtual) {
-  return deals.map(d => ({
-    id: String(d.id),
-    titulo: d.title || '',
-    valor: d.value || 0,
-    vendedora: getUserName(d),
-    motivo: d.lost_reason || 'Sem motivo',
-    mes: getMonthKey(d.lost_time) || mesAtual
-  }))
+  return deals.map(d => {
+    const mes = getMonthKey(d.lost_time) || getMonthKey(d.close_time) || getMonthKey(d.update_time) || mesAtual
+    return {
+      id: String(d.id),
+      titulo: d.title || '',
+      valor: d.value || 0,
+      vendedora: getUserName(d),
+      motivo: d.lost_reason || 'Sem motivo',
+      mes
+    }
+  })
 }
 
 function buildFunil(openDeals) {
