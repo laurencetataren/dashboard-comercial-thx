@@ -32,6 +32,7 @@ export default function ParticleNetwork() {
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
+
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x
@@ -39,7 +40,7 @@ export default function ParticleNetwork() {
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (dist < CONNECTION_DIST) {
             const opacity = (1 - dist / CONNECTION_DIST) * 0.15
-            ctx.strokeStyle = \`rgba(0, 210, 255, \${opacity})\`
+            ctx.strokeStyle = `rgba(0, 210, 255, ${opacity})`
             ctx.lineWidth = 0.5
             ctx.beginPath()
             ctx.moveTo(particles[i].x, particles[i].y)
@@ -48,20 +49,24 @@ export default function ParticleNetwork() {
           }
         }
       }
+
       particles.forEach(p => {
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-        ctx.fillStyle = \`rgba(0, 210, 255, \${p.opacity})\`
+        ctx.fillStyle = `rgba(0, 210, 255, ${p.opacity})`
         ctx.fill()
+
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2)
-        ctx.fillStyle = \`rgba(0, 210, 255, \${p.opacity * 0.1})\`
+        ctx.fillStyle = `rgba(0, 210, 255, ${p.opacity * 0.1})`
         ctx.fill()
+
         p.x += p.vx
         p.y += p.vy
         if (p.x < 0 || p.x > canvas.width) p.vx *= -1
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1
       })
+
       animationId = requestAnimationFrame(draw)
     }
     draw()
