@@ -616,34 +616,104 @@ function TabMovimentacao({ data, metrics }) {
 // TAB: PROJECAO
 // =============================================
 function TabProjecao({ data, metrics }) {
+  // Per-seller calculations
+  const sellerDefs = [
+    { nome: 'Tayna Kazial', short: 'Tayna', color: '#06b6d4', gradId: 'gradTayna' },
+    { nome: 'Gabrieli Muneretto', short: 'Gabrieli', color: '#8b5cf6', gradId: 'gradGabrieli' }
+  ]
+
+  const sellerStats = {}
+  sellerDefs.forEach(s => {
+    const won = (data.wonDeals || []).filter(d => d.vendedora === s.nome)
+    const open = (data.openDeals || []).filter(d => d.vendedora === s.nome)
+    const wonValor = won.reduce((sum, d) => sum + (d.valor || 0), 0)
+    const openValor = open.reduce((sum, d) => sum + (d.valor || 0), 0)
+    sellerStats[s.short] = {
+      wonValor,
+      wonCount: won.length,
+      openValor,
+      openCount: open.length,
+      dailyRate: metrics.diaAtual > 0 ? wonValor / metrics.diaAtual : 0,
+      projecaoMes: metrics.diaAtual > 0 ? (wonValor / metrics.diaAtual) * metrics.diasNoMes : 0
+    }
+  })
+
+  const metaMensal = metrics.metaValor
+  const metaSemanal = Math.round(metaMensal / 4)
+  const convRate = (metrics.taxaConversao || 20) / 100
+  const metaPerSeller = metaMensal / 2
+
+  // Projecao geral
   const projecaoLinear = metrics.projecaoValor
   const projecaoPessimista = projecaoLinear * 0.85
   const projecaoOtimista = projecaoLinear * 1.15
-
-  const projecaoChart = metrics.historico.map(h => ({
-    mes: fmtMes(h.mes),
-    realizado: h.won_value,
-    meta: null
-  }))
-
-  const metaAtual = metrics.metas?.find(m => m.mes === metrics.mesAtual)
-  if (projecaoChart.length > 0) {
-    const last = projecaoChart[projecaoChart.length - 1]
-    last.meta = metrics.metaValor
-    last.projecao = projecaoLinear
-  }
-
-  const eficienciaData = metrics.historico.map(h => ({
-    mes: fmtMes(h.mes),
-    ticketMedio: h.ticket_medio,
-    ciclo: h.ciclo_medio_dias
-  }))
 
   const cenarios = [
     { nome: 'Pessimista', valor: projecaoPessimista, cor: '#ef4444', desc: 'Ritmo reduz 15%' },
     { nome: 'Base', valor: projecaoLinear, cor: '#06b6d4', desc: 'Mantendo ritmo atual' },
     { nome: 'Otimista', valor: projecaoOtimista, cor: '#10b981', desc: 'Ritmo acelera 15%' },
   ]
+
+  // Chart 1: Pace Mensal — acumulado diario vs meta
+  const daysInMonth = metrics.diasNoMes
+  const milestones = [1, 5, 10, 15, 20, 25, daysInMonth].filter((v, i, arr) => arr.indexOf(v) === i)
+  const paceMensalData = milestones.map(d => ({
+    dia: `D${d}`,
+    Meta: Math.round((metaMensal / daysInMonth) * d),
+    Tayna: Math.round(sellerStats.Tayna.dailyRate * d),
+    Gabrieli: Math.round(sellerStats.Gabrieli.dailyRate * d)
+  }))
+
+  // Chart 2: Pace Semanal — acumulado no dia da semana vs meta semanal
+  const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex']
+  const paceSemanalData = weekDays.map((dia, i) => ({
+    dia,
+    Meta: Math.round((metaSemanal / 5) * (i + 1)),
+    Tayna: Math.round(sellerStats.Tayna.dailyRate * (i + 1)),
+    Gabrieli: Math.round(sellerStats.Gabrieli.dailyRate * (i + 1))
+  }))
+
+  // Charts 3 & 4: Volume de Oportunidades necessario vs atual
+  // Pipeline necessario = (meta_restante_por_vendedora / taxa_conversao)
+  // Mostra por semana do mes quanto pipeline cada vendedora precisa
+
+  // Mensal: por semana do mes
+  const volumeMensalData = [1, 2, 3, 4].map(sem => {
+    const pctMes = sem / 4
+    const point = { periodo: `Sem ${sem}` }
+    sellerDefs.forEach(s => {
+      const stats = sellerStats[s.short]
+      const wonAteAqui = stats.wonValor * Math.min(pctMes, metrics.diaAtual / daysInMonth) / (metrics.diaAtual / daysInMonth || 1)
+      const gap = Math.max(metaPerSeller - wonAteAqui, 0)
+      const needed = convRate > 0 ? gap / convRate : 0
+      point[`${s.short}_necessario`] = Math.round(needed)
+      point[`${s.short}_pipeline`] = Math.round(stats.openValor)
+    })
+    return point
+  })
+
+  // Semanal: por dia da semana
+  const volumeSemanalData = weekDays.map((dia, i) => {
+    const pctSemana = (i + 1) / 5
+    const metaSemPerSeller = metaSemanal / 2
+    const point = { periodo: dia }
+    sellerDefs.forEach(s => {
+      const stats = sellerStats[s.short]
+      const wonEstimado = stats.dailyRate * (i + 1)
+      const gap = Math.max(metaSemPerSeller - wonEstimado, 0)
+      const needed = convRate > 0 ? gap / convRate : 0
+      point[`${s.short}_necessario`] = Math.round(needed)
+      point[`${s.short}_pipeline`] = Math.round(stats.openValor)
+    })
+    return point
+  })
+
+  // Historico ticket medio e ciclo
+  const eficienciaData = metrics.historico.map(h => ({
+    mes: fmtMes(h.mes),
+    ticketMedio: h.ticket_medio,
+    ciclo: h.ciclo_medio_dias
+  }))
 
   return (
     <div className="space-y-8">
@@ -681,53 +751,160 @@ function TabProjecao({ data, metrics }) {
         </div>
       </GlassCard>
 
+      {/* 4 Charts de Projecao — 2x2 grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Evolucao realizado vs meta */}
+        {/* Chart 1: Pace Mensal */}
         <GlassCard>
           <div className="p-6">
-            <SectionTitle icon={BarChart3}>Realizado vs Meta</SectionTitle>
-            <div className="h-[300px]">
+            <SectionTitle icon={TrendingUp}>Pace Mensal vs Meta</SectionTitle>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">Projecao acumulada por vendedora no ritmo atual</p>
+            <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={projecaoChart}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
-                  <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
-                  <Bar dataKey="realizado" name="Realizado" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="meta" name="Meta" fill="#f59e0b" radius={[4, 4, 0, 0]} opacity={0.4} />
-                  <Bar dataKey="projecao" name="Projecao" fill="#06b6d4" radius={[4, 4, 0, 0]} opacity={0.3} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </GlassCard>
-
-        {/* Ticket medio e ciclo */}
-        <GlassCard>
-          <div className="p-6">
-            <SectionTitle icon={Clock}>Ticket Medio e Ciclo de Venda</SectionTitle>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={eficienciaData}>
+                <AreaChart data={paceMensalData}>
                   <defs>
-                    <linearGradient id="gradTicket" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="gradTayna" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradGabrieli" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="left" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}d`} />
-                  <Tooltip content={<CustomTooltip formatter={(v, name) => name === 'Ciclo (dias)' ? `${v} dias` : fmtCurrency(v)} />} />
-                  <Area yAxisId="left" type="monotone" dataKey="ticketMedio" name="Ticket Medio" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradTicket)" />
-                  <Area yAxisId="right" type="monotone" dataKey="ciclo" name="Ciclo (dias)" stroke="#f59e0b" strokeWidth={2} fill="none" strokeDasharray="5 5" />
+                  <XAxis dataKey="dia" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                  <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
+                  <Area type="monotone" dataKey="Tayna" name="Tayna" stroke="#06b6d4" strokeWidth={2} fill="url(#gradTayna)" />
+                  <Area type="monotone" dataKey="Gabrieli" name="Gabrieli" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradGabrieli)" />
+                  <Area type="monotone" dataKey="Meta" name="Meta" stroke="#f59e0b" strokeWidth={2} fill="none" strokeDasharray="5 5" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Chart 2: Pace Semanal */}
+        <GlassCard>
+          <div className="p-6">
+            <SectionTitle icon={TrendingUp}>Pace Semanal vs Meta</SectionTitle>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">Projecao acumulada na semana atual</p>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={paceSemanalData}>
+                  <defs>
+                    <linearGradient id="gradTaynaSem" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradGabrieliSem" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="dia" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                  <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
+                  <Area type="monotone" dataKey="Tayna" name="Tayna" stroke="#06b6d4" strokeWidth={2} fill="url(#gradTaynaSem)" />
+                  <Area type="monotone" dataKey="Gabrieli" name="Gabrieli" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradGabrieliSem)" />
+                  <Area type="monotone" dataKey="Meta" name="Meta" stroke="#f59e0b" strokeWidth={2} fill="none" strokeDasharray="5 5" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Chart 3: Volume Oportunidades Mensal */}
+        <GlassCard>
+          <div className="p-6">
+            <SectionTitle icon={Layers}>Volume Oportunidades | Mes</SectionTitle>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">Pipeline necessario vs atual (taxa conv. {fmtPct(metrics.taxaConversao, 0)})</p>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={volumeMensalData}>
+                  <defs>
+                    <linearGradient id="gradTaynaVol" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradGabrieliVol" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="periodo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                  <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
+                  <Area type="monotone" dataKey="Tayna_pipeline" name="Tayna Pipeline" stroke="#06b6d4" strokeWidth={2} fill="url(#gradTaynaVol)" />
+                  <Area type="monotone" dataKey="Tayna_necessario" name="Tayna Necessario" stroke="#06b6d4" strokeWidth={2} fill="none" strokeDasharray="5 5" opacity={0.6} />
+                  <Area type="monotone" dataKey="Gabrieli_pipeline" name="Gabrieli Pipeline" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradGabrieliVol)" />
+                  <Area type="monotone" dataKey="Gabrieli_necessario" name="Gabrieli Necessario" stroke="#8b5cf6" strokeWidth={2} fill="none" strokeDasharray="5 5" opacity={0.6} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Chart 4: Volume Oportunidades Semanal */}
+        <GlassCard>
+          <div className="p-6">
+            <SectionTitle icon={Layers}>Volume Oportunidades | Semana</SectionTitle>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">Pipeline necessario vs atual na semana</p>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={volumeSemanalData}>
+                  <defs>
+                    <linearGradient id="gradTaynaVolSem" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradGabrieliVolSem" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="periodo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                  <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
+                  <Area type="monotone" dataKey="Tayna_pipeline" name="Tayna Pipeline" stroke="#06b6d4" strokeWidth={2} fill="url(#gradTaynaVolSem)" />
+                  <Area type="monotone" dataKey="Tayna_necessario" name="Tayna Necessario" stroke="#06b6d4" strokeWidth={2} fill="none" strokeDasharray="5 5" opacity={0.6} />
+                  <Area type="monotone" dataKey="Gabrieli_pipeline" name="Gabrieli Pipeline" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradGabrieliVolSem)" />
+                  <Area type="monotone" dataKey="Gabrieli_necessario" name="Gabrieli Necessario" stroke="#8b5cf6" strokeWidth={2} fill="none" strokeDasharray="5 5" opacity={0.6} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
         </GlassCard>
       </div>
+
+      {/* Ticket Medio e Ciclo */}
+      <GlassCard>
+        <div className="p-6">
+          <SectionTitle icon={Clock}>Ticket Medio e Ciclo de Venda</SectionTitle>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={eficienciaData}>
+                <defs>
+                  <linearGradient id="gradTicket" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="left" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}d`} />
+                <Tooltip content={<CustomTooltip formatter={(v, name) => name === 'Ciclo (dias)' ? `${v} dias` : fmtCurrency(v)} />} />
+                <Area yAxisId="left" type="monotone" dataKey="ticketMedio" name="Ticket Medio" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradTicket)" />
+                <Area yAxisId="right" type="monotone" dataKey="ciclo" name="Ciclo (dias)" stroke="#f59e0b" strokeWidth={2} fill="none" strokeDasharray="5 5" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </GlassCard>
     </div>
   )
 }
