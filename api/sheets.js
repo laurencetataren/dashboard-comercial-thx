@@ -172,7 +172,7 @@ function getDemoData() {
       { id: '3', titulo: 'Logistica Gamma', valor: 32000, estagio: 'BID', vendedora: 'Tayna Kazial', empresa: 'Gamma Express', dataCriacao: '2026-03-15' },
       { id: '4', titulo: 'Frete Delta Corp', valor: 91000, estagio: 'Proposta Aprovada', vendedora: 'Gabrieli Muneretto', empresa: 'Delta Corp', dataCriacao: '2026-02-28' },
       { id: '5', titulo: 'Rodoviario Epsilon', valor: 55000, estagio: 'Em Negociacao', vendedora: 'Tayna Kazial', empresa: 'Epsilon Cargo', dataCriacao: '2026-03-12' },
-      { id: '6', titulo: 'Transporte Zeta', valor: 120000, estagio: 'BUGS', vendedora: 'Gabrieli Muneretto', empresa: 'Zeta Log', dataCriacao: '2026-03-20' },
+      { id: '6', titulo: 'Transporte Zeta', valor: 120000, estagio: 'Em Negociacao', vendedora: 'Gabrieli Muneretto', empresa: 'Zeta Log', dataCriacao: '2026-03-20' },
       { id: '7', titulo: 'Operador Eta', valor: 67000, estagio: 'Pedido de Cotacao', vendedora: 'Tayna Kazial', empresa: 'Eta Transportes', dataCriacao: '2026-03-18' },
       { id: '8', titulo: 'Carga Theta', valor: 43000, estagio: 'Em Negociacao', vendedora: 'Gabrieli Muneretto', empresa: 'Theta Freight', dataCriacao: '2026-03-22' }
     ],
@@ -195,9 +195,8 @@ function getDemoData() {
       { id: '206', titulo: 'Perdido F', valor: 55000, vendedora: 'Gabrieli Muneretto', motivo: 'Sem resposta', mes: mesAtual }
     ],
     funil: [
-      { nome: 'BUGS', count: 1, valor: 120000 },
       { nome: 'Pedido de Cotacao', count: 2, valor: 112000 },
-      { nome: 'Em Negociacao', count: 3, valor: 176000 },
+      { nome: 'Em Negociacao', count: 4, valor: 296000 },
       { nome: 'BID', count: 1, valor: 32000 },
       { nome: 'Proposta Aprovada', count: 1, valor: 91000 }
     ],
