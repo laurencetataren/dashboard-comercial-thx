@@ -45,6 +45,7 @@ function computeMetrics(data) {
 
   const lostMesAtual = data.lostDeals?.filter(d => d.mes === mesAtual) || []
   const totalLostCount = lostMesAtual.length
+  const totalLostValor = lostMesAtual.reduce((s, d) => s + (d.valor || 0), 0)
 
   const metaAtual = data.metas?.find(m => m.mes === mesAtual)
   const metaValor = metaAtual?.meta_valor || 0
@@ -59,12 +60,12 @@ function computeMetrics(data) {
   const totalDecididos = totalWonCount + totalLostCount
   const taxaConversao = totalDecididos > 0 ? (totalWonCount / totalDecididos) * 100 : 0
   const vendedoras = data.performanceVendedoras || []
-  const historico = data.historicoMensal || []
+  const historico = (data.historicoMensal || []).filter(h => h.mes >= '2026')
   const mesAnteriorData = historico.length >= 2 ? historico[historico.length - 2] : null
   const trendValor = mesAnteriorData ? ((totalWonValor - mesAnteriorData.won_value) / mesAnteriorData.won_value) * 100 : 0
   const trendConversao = mesAnteriorData ? taxaConversao - mesAnteriorData.conversion_rate : 0
 
-  const STAGE_ORDER = ['BUGS', 'Pedido de Cotacao', 'Em Negociacao', 'BID', 'Proposta Aprovada']
+  const STAGE_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'BID', 'Proposta Aprovada']
   const funil = STAGE_ORDER.map(nome => {
     const stage = data.funil?.find(f => f.nome === nome) || { nome, count: 0, valor: 0 }
     return stage
@@ -77,6 +78,7 @@ function computeMetrics(data) {
 
   return {
     mesAtual, totalWonValor, totalWonCount, totalLostCount,
+    totalLostValor,
     totalFunilValor, totalFunilCount, ticketMedio, taxaConversao,
     metaValor, metaDeals, atingimentoValor, atingimentoDeals,
     trendValor: parseFloat(trendValor.toFixed(1)),
