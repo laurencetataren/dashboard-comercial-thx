@@ -285,6 +285,94 @@ function TabVisaoGeral({ data, metrics }) {
         </GlassCard>
       </div>
 
+      {/* FAIXA: Faturado vs Vendido */}
+      {(() => {
+        const faturado = data?.faturado || { totalFaturado: 0, countCargas: 0 }
+        const totalFaturado = faturado.totalFaturado || 0
+        const totalVendido = metrics.totalWonValor || 0
+        const metaFaturado = metrics.metaValor || 0
+        const pctFaturadoMeta = metaFaturado > 0 ? Math.round((totalFaturado / metaFaturado) * 1000) / 10 : 0
+        const pctVendidoFaturado = totalVendido > 0 ? Math.round((totalFaturado / totalVendido) * 1000) / 10 : 0
+        const perdas = totalVendido - totalFaturado
+        const perdasPositivo = perdas > 0 ? perdas : 0
+
+        const fatColor = pctFaturadoMeta >= 100 ? 'emerald' : pctFaturadoMeta >= 80 ? 'amber' : 'rose'
+        const fatColorText = pctFaturadoMeta >= 100 ? 'text-emerald-400' : pctFaturadoMeta >= 80 ? 'text-amber-400' : 'text-rose-400'
+        const fatColorBg = pctFaturadoMeta >= 100 ? 'from-emerald-500/10 to-emerald-500/5' : pctFaturadoMeta >= 80 ? 'from-amber-500/10 to-amber-500/5' : 'from-rose-500/10 to-rose-500/5'
+        const fatColorBorder = pctFaturadoMeta >= 100 ? 'border-emerald-500/20' : pctFaturadoMeta >= 80 ? 'border-amber-500/20' : 'border-rose-500/20'
+
+        return (
+          <>
+            {/* Faturado com barra de progresso */}
+            <GlassCard>
+              <div className={`p-6 border-l-4 ${fatColorBorder}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${fatColorBg} flex items-center justify-center`}>
+                      <DollarSign size={20} className={fatColorText} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Faturado | {fmtMesFull(metrics.mesAtual)}</p>
+                      <p className="text-xs text-white/30 mt-0.5">{faturado.countCargas} cargas faturadas</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-3xl font-bold ${fatColorText}`}>{fmtPct(pctFaturadoMeta, 1)}</p>
+                    <p className="text-xs text-white/30">da meta</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-6 mb-4">
+                  <div>
+                    <p className="text-xs text-white/40 mb-1">Faturado</p>
+                    <p className="text-xl font-bold text-white">{fmtCurrency(totalFaturado)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-white/40 mb-1">Meta</p>
+                    <p className="text-xl font-bold text-white/60">{fmtCurrency(metaFaturado)}</p>
+                  </div>
+                </div>
+                <ProgressBar value={totalFaturado} max={metaFaturado} color={fatColor} size="lg" />
+              </div>
+            </GlassCard>
+
+            {/* Vendido vs Faturado % + Perdas/No Show */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <GlassCard hover>
+                <div className="p-5 border-l-2 border-blue-500/20">
+                  <div className="flex items-start justify-between mb-3">
+                    <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Vendido vs Faturado</p>
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-500/5 flex items-center justify-center">
+                      <ArrowLeftRight size={16} className="text-blue-400" />
+                    </div>
+                  </div>
+                  <p className={`text-2xl font-bold mb-1 ${pctVendidoFaturado >= 90 ? 'text-emerald-400' : pctVendidoFaturado >= 70 ? 'text-amber-400' : 'text-rose-400'}`}>
+                    {fmtPct(pctVendidoFaturado, 1)}
+                  </p>
+                  <p className="text-sm text-white/50">
+                    {fmtCurrency(totalFaturado)} de {fmtCurrency(totalVendido)} vendidos
+                  </p>
+                </div>
+              </GlassCard>
+
+              <GlassCard hover>
+                <div className="p-5 border-l-2 border-rose-500/40">
+                  <div className="flex items-start justify-between mb-3">
+                    <p className="text-[11px] uppercase tracking-[0.15em] text-rose-400/80 font-medium">Perdas / No Show</p>
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500/20 to-rose-500/10 flex items-center justify-center">
+                      <AlertTriangle size={16} className="text-rose-400" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-rose-400 mb-1">{fmtCurrency(perdasPositivo)}</p>
+                  <p className="text-sm text-rose-400/50">
+                    GAP entre vendido e faturado
+                  </p>
+                </div>
+              </GlassCard>
+            </div>
+          </>
+        )
+      })()}
+
       {/* FAIXA 3: Ticket Medio / Taxa Conversao */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <KPICard
