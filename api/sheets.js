@@ -3,7 +3,14 @@
 // Fallback para dados demo se PIPEDRIVE_API_KEY nao estiver configurada
 
 const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY
+const CLICKUP_API_TOKEN = process.env.CLICKUP_API_TOKEN
 const PIPELINE_ID = 7
+
+// ClickUp Flash FTL
+const CLICKUP_FLASH_FTL_LIST = '901304617884'
+const CLICKUP_FRETE_EMPRESA_FIELD = 'b0d60416-41fd-4dcd-95f8-8d44db267745'
+const CLICKUP_COLETA_FIELD = 'ee0f910c-b3dc-4e7f-8e5f-e00f0fa04707'
+const CLICKUP_MOTIVO_NOSHOW_FIELD = '947cdd58-3c6d-4d78-a0ce-b303af389b69'
 
 // Mapeamento de stages do Pipeline 7
 const STAGES = {
@@ -330,6 +337,80 @@ function buildClientesAtivos(openDeals, wonDeals, lostDeals, mesFilter) {
     .slice(0, 50) // Top 50 clientes
 }
 
+// ========== CLICKUP API (Flash FTL — Faturado) ==========
+
+async function clickupFetch(endpoint, params = {}) {
+  const url = new URL(`https://api.clickup.com/api/v2/${endpoint}`)
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
+
+  const res = await fetch(url.toString(), {
+    headers: { 'Authorization': CLICKUP_API_TOKEN }
+  })
+  if (!res.ok) {
+    throw new Error(`ClickUp API error: ${res.status} ${res.statusText} on ${endpoint}`)
+  }
+  return res.json()
+}
+
+async function fetchFaturadoTasks(mesFiltro) {
+  const allTasks = []
+  let page = 0
+
+  while (true) {
+    const result = await clickupFetch(`list/${CLICKUP_FLASH_FTL_LIST}/task`, {
+      page: String(page),
+      limit: '100',
+      statuses: 'em transito,faturado',
+      include_closed: 'true',
+      subtasks: 'true'
+    })
+
+    if (!result.tasks || result.tasks.length === 0) break
+    allTasks.push(...result.tasks)
+    if (result.tasks.length < 100) break
+    page++
+  }
+
+  const [ano, mesNum] = mesFiltro.split('-').map(Number)
+
+  const filtered = allTasks.filter(task => {
+    const coletaField = task.custom_fields?.find(f => f.id === CLICKUP_COLETA_FIELD)
+    if (!coletaField || !coletaField.value) return false
+    const coletaDate = new Date(Number(coletaField.value))
+    return coletaDate.getFullYear() === ano && (coletaDate.getMonth() + 1) === mesNum
+  })
+
+  return filtered.map(task => {
+    const freteField = task.custom_fields?.find(f => f.id === CLICKUP_FRETE_EMPRESA_FIELD)
+    const noShowField = task.custom_fields?.find(f => f.id === CLICKUP_MOTIVO_NOSHOW_FIELD)
+    const coletaField = task.custom_fields?.find(f => f.id === CLICKUP_COLETA_FIELD)
+
+    const freteValor = freteField?.value ? parseFloat(freteField.value) : 0
+    const motivoNoShow = noShowField?.value ? (noShowField.type_config?.options?.find(o => o.orderindex === noShowField.value)?.name || '') : ''
+    const coletaDate = coletaField?.value ? new Date(Number(coletaField.value)).toISOString().substring(0, 10) : ''
+
+    return {
+      id: task.id,
+      nome: task.name || '',
+      status: task.status?.status || '',
+      freteEmpresa: freteValor,
+      motivoNoShow,
+      dataColeta: coletaDate
+    }
+  })
+}
+
+function processFaturadoData(tasks) {
+  const totalFaturado = tasks.reduce((sum, t) => sum + t.freteEmpresa, 0)
+  const countCargas = tasks.length
+
+  return {
+    totalFaturado,
+    countCargas,
+    tasks
+  }
+}
+
 // Metas (hardcoded por enquanto, pode migrar para planilha depois)
 function getMetas() {
   return [
@@ -369,12 +450,17 @@ export default async function handler(req, res) {
     const startOfFilterMonth = `${mesFiltro}-01`
     const endOfFilterMonth = `${mesFiltro}-31`
 
-    // Busca dados em paralelo (todos usuarios, everyone=1)
-    const [rawOpen, rawWon, rawLost, rawActivities] = await Promise.all([
+    // Busca dados em paralelo (todos usuarios, everyone=1 + ClickUp faturado)
+    const clickupPromise = CLICKUP_API_TOKEN
+      ? fetchFaturadoTasks(mesFiltro).catch(err => { console.error('ClickUp error:', err); return [] })
+      : Promise.resolve([])
+
+    const [rawOpen, rawWon, rawLost, rawActivities, rawFaturado] = await Promise.all([
       fetchOpenDeals(),
       fetchWonDeals(),
       fetchLostDeals(),
-      fetchActivities(startOfFilterMonth, endOfFilterMonth)
+      fetchActivities(startOfFilterMonth, endOfFilterMonth),
+      clickupPromise
     ])
 
     // Processa dados
@@ -383,6 +469,7 @@ export default async function handler(req, res) {
     const lostDeals = processLostDeals(rawLost, mesAtual)
     const atividades = buildAtividades(rawActivities)
     const clientesAtivos = buildClientesAtivos(openDeals, wonDeals, lostDeals, mesFiltro)
+    const faturadoData = processFaturadoData(rawFaturado)
 
     // Meses disponiveis para filtro (ultimos 12 meses)
     const mesesDisponiveis = []
@@ -406,7 +493,8 @@ export default async function handler(req, res) {
       historicoMensal: buildHistoricoMensal(wonDeals, lostDeals, openDeals),
       metas: getMetas(),
       atividades,
-      clientesAtivos
+      clientesAtivos,
+      faturado: faturadoData
     }
 
     // Cache 5 minutos
@@ -500,6 +588,11 @@ function getDemoData() {
       { cliente: 'Theta Freight', perfil: 'Embarcador', termometro: 'Frio', responsavel: 'Gabrieli Muneretto', numDeals: 1, valorCotado: 43000, vendido: 0, conversao: 0 },
       { cliente: 'Iota Rodoviario', perfil: 'Transportadora', termometro: 'Quente', responsavel: 'Tayna Kazial', numDeals: 3, valorCotado: 195000, vendido: 142000, conversao: 73 },
       { cliente: 'Kappa Express', perfil: 'Operador Logistico', termometro: 'Morno', responsavel: 'Gabrieli Muneretto', numDeals: 2, valorCotado: 190000, vendido: 95000, conversao: 50 }
-    ]
+    ],
+    faturado: {
+      totalFaturado: 520000,
+      countCargas: 38,
+      tasks: []
+    }
   }
 }
