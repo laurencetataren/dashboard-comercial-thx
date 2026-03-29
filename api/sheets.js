@@ -75,24 +75,24 @@ async function fetchAllPages(endpoint, params = {}, filterFn = null) {
 // ========== DATA FETCHING ==========
 
 async function fetchOpenDeals() {
-  // Busca deals abertos de cada stage do Pipeline 7
+  // Busca deals abertos de cada stage do Pipeline 7 (everyone=1 para incluir todos os usuarios)
   const allDeals = []
   for (const stageId of FUNIL_STAGES) {
-    const deals = await fetchAllPages(`stages/${stageId}/deals`, { status: 'open' })
+    const deals = await fetchAllPages(`stages/${stageId}/deals`, { everyone: '1' })
     allDeals.push(...deals)
   }
   return allDeals
 }
 
 async function fetchWonDeals() {
-  // Busca todos os won deals e filtra por pipeline_id === 7
-  const deals = await fetchAllPages('deals', { status: 'won' }, d => d.pipeline_id === PIPELINE_ID)
+  // Busca todos os won deals de todos usuarios e filtra por pipeline_id === 7
+  const deals = await fetchAllPages('deals', { status: 'won', user_id: '0' }, d => d.pipeline_id === PIPELINE_ID)
   return deals
 }
 
 async function fetchLostDeals() {
-  // Busca todos os lost deals e filtra por pipeline_id === 7
-  const deals = await fetchAllPages('deals', { status: 'lost' }, d => d.pipeline_id === PIPELINE_ID)
+  // Busca todos os lost deals de todos usuarios e filtra por pipeline_id === 7
+  const deals = await fetchAllPages('deals', { status: 'lost', user_id: '0' }, d => d.pipeline_id === PIPELINE_ID)
   return deals
 }
 
@@ -266,9 +266,13 @@ function buildAtividades(activities) {
   return Object.values(byUser)
 }
 
-function buildClientesAtivos(openDeals, wonDeals, lostDeals) {
-  // Agrupa todos os deals por organizacao
+function buildClientesAtivos(openDeals, wonDeals, lostDeals, mesFilter) {
+  // Agrupa deals por organizacao, filtrando por mes se especificado
   const byOrg = {}
+
+  // Filtra won/lost por mes se mesFilter fornecido
+  const wonFiltered = mesFilter ? wonDeals.filter(d => d.mes === mesFilter) : wonDeals
+  const lostFiltered = mesFilter ? lostDeals.filter(d => d.mes === mesFilter) : lostDeals
 
   const processDeal = (d, status) => {
     const org = d.empresa || d.titulo
@@ -294,15 +298,14 @@ function buildClientesAtivos(openDeals, wonDeals, lostDeals) {
     }
     if (status === 'lost') byOrg[org].lostCount++
     if (status === 'open') byOrg[org].openCount++
-    // Atualiza responsavel se houver
     if (d.vendedora && d.vendedora !== 'Desconhecido') {
       byOrg[org].responsavel = d.vendedora
     }
   }
 
   openDeals.forEach(d => processDeal(d, 'open'))
-  wonDeals.forEach(d => processDeal(d, 'won'))
-  lostDeals.forEach(d => processDeal(d, 'lost'))
+  wonFiltered.forEach(d => processDeal(d, 'won'))
+  lostFiltered.forEach(d => processDeal(d, 'lost'))
 
   // Calcula termometro e conversao
   return Object.values(byOrg)
@@ -324,7 +327,7 @@ function buildClientesAtivos(openDeals, wonDeals, lostDeals) {
       }
     })
     .sort((a, b) => b.valorCotado - a.valorCotado)
-    .slice(0, 30) // Top 30 clientes
+    .slice(0, 50) // Top 50 clientes
 }
 
 // Metas (hardcoded por enquanto, pode migrar para planilha depois)
@@ -361,15 +364,17 @@ export default async function handler(req, res) {
   try {
     const now = new Date()
     const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    const startOfMonth = `${mesAtual}-01`
-    const endOfMonth = `${mesAtual}-31`
+    // Mes selecionado via query param (filtro global), default: mes atual
+    const mesFiltro = req.query?.mes || mesAtual
+    const startOfFilterMonth = `${mesFiltro}-01`
+    const endOfFilterMonth = `${mesFiltro}-31`
 
-    // Busca dados em paralelo
+    // Busca dados em paralelo (todos usuarios, everyone=1)
     const [rawOpen, rawWon, rawLost, rawActivities] = await Promise.all([
       fetchOpenDeals(),
       fetchWonDeals(),
       fetchLostDeals(),
-      fetchActivities(startOfMonth, endOfMonth)
+      fetchActivities(startOfFilterMonth, endOfFilterMonth)
     ])
 
     // Processa dados
@@ -377,17 +382,27 @@ export default async function handler(req, res) {
     const wonDeals = processWonDeals(rawWon, mesAtual)
     const lostDeals = processLostDeals(rawLost, mesAtual)
     const atividades = buildAtividades(rawActivities)
-    const clientesAtivos = buildClientesAtivos(openDeals, wonDeals, lostDeals)
+    const clientesAtivos = buildClientesAtivos(openDeals, wonDeals, lostDeals, mesFiltro)
 
-          const data = {
+    // Meses disponiveis para filtro (ultimos 12 meses)
+    const mesesDisponiveis = []
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      mesesDisponiveis.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+    }
+
+    const data = {
       timestamp: now.toISOString(),
       demo: false,
+      mesAtual,
+      mesFiltro,
+      mesesDisponiveis,
       openDeals,
-      wonDeals: wonDeals.filter(d => d.mes === mesAtual),
-      lostDeals: lostDeals.filter(d => d.mes === mesAtual),
+      wonDeals: wonDeals.filter(d => d.mes === mesFiltro),
+      lostDeals: lostDeals.filter(d => d.mes === mesFiltro),
       funil: buildFunil(openDeals),
-      performanceVendedoras: buildPerformance(wonDeals, mesAtual),
-      motivosPerda: buildMotivosPerda(lostDeals, mesAtual),
+      performanceVendedoras: buildPerformance(wonDeals, mesFiltro),
+      motivosPerda: buildMotivosPerda(lostDeals, mesFiltro),
       historicoMensal: buildHistoricoMensal(wonDeals, lostDeals, openDeals),
       metas: getMetas(),
       atividades,
