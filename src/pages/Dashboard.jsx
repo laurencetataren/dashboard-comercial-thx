@@ -189,7 +189,6 @@ function TabVisaoGeral({ data, metrics }) {
   // Cor da meta: verde >= 100%, amarelo 80-99%, vermelho < 80%
   const pctMeta = metrics.atingimentoValor
   const metaColor = pctMeta >= 100 ? 'emerald' : pctMeta >= 80 ? 'amber' : 'rose'
-  const metaColorHex = pctMeta >= 100 ? '#10b981' : pctMeta >= 80 ? '#f59e0b' : '#ef4444'
   const metaColorText = pctMeta >= 100 ? 'text-emerald-400' : pctMeta >= 80 ? 'text-amber-400' : 'text-rose-400'
   const metaColorBg = pctMeta >= 100 ? 'from-emerald-500/10 to-emerald-500/5' : pctMeta >= 80 ? 'from-amber-500/10 to-amber-500/5' : 'from-rose-500/10 to-rose-500/5'
   const metaColorBorder = pctMeta >= 100 ? 'border-emerald-500/20' : pctMeta >= 80 ? 'border-amber-500/20' : 'border-rose-500/20'
@@ -373,7 +372,6 @@ function TabFunil({ data, metrics }) {
   }).sort((a, b) => (b.valor || 0) - (a.valor || 0))
 
   const stageColors = ['#f59e0b', '#06b6d4', '#10b981']
-  const stageIcons = ['FileText', 'MessageSquare', 'CheckCircle']
 
   return (
     <div className="space-y-8">
@@ -393,7 +391,6 @@ function TabFunil({ data, metrics }) {
             {stages.map((stage, i) => {
               const color = stageColors[i] || '#06b6d4'
               const pctDeals = totalDeals > 0 ? Math.round((stage.count / totalDeals) * 100) : 0
-              const widthPct = Math.max(100 - (i * 15), 55)
 
               return (
                 <div key={stage.nome} className="flex items-center gap-2 md:gap-3 flex-1">
@@ -430,7 +427,7 @@ function TabFunil({ data, metrics }) {
               const convPct = stage.count > 0 ? Math.round((next.count / stage.count) * 100) : 0
               return (
                 <div key={i} className="text-center">
-                  <span className="text-[10px] text-white/25">{stage.nome.split(' ')[0]} â {next.nome.split(' ')[0]}</span>
+                  <span className="text-[10px] text-white/25">{stage.nome.split(' ')[0]} \u2192 {next.nome.split(' ')[0]}</span>
                   <p className="text-xs font-semibold text-white/50">{convPct}% conv.</p>
                 </div>
               )
@@ -558,12 +555,12 @@ function TabPerformance({ data, metrics }) {
   const atividades = data.atividades || []
   const totalAtividades = atividades.reduce((s, a) => s + a.ligacoes + a.emails + a.reunioes + a.propostas + a.followups + a.whatsapp, 0)
   const atividadeLabels = [
-    { key: 'ligacoes', label: 'Ligacoes', icon: 'ð', color: '#06b6d4' },
-    { key: 'emails', label: 'Emails', icon: 'ð§', color: '#8b5cf6' },
-    { key: 'whatsapp', label: 'WhatsApp', icon: 'ð¬', color: '#10b981' },
-    { key: 'reunioes', label: 'Reunioes', icon: 'ð¤', color: '#f59e0b' },
-    { key: 'propostas', label: 'Propostas', icon: 'ð', color: '#ec4899' },
-    { key: 'followups', label: 'Follow-ups', icon: 'ð', color: '#ef4444' }
+    { key: 'ligacoes', label: 'Ligacoes', color: '#06b6d4' },
+    { key: 'emails', label: 'Emails', color: '#8b5cf6' },
+    { key: 'whatsapp', label: 'WhatsApp', color: '#10b981' },
+    { key: 'reunioes', label: 'Reunioes', color: '#f59e0b' },
+    { key: 'propostas', label: 'Propostas', color: '#ec4899' },
+    { key: 'followups', label: 'Follow-ups', color: '#ef4444' }
   ]
 
   // Chart data para atividades comparativas
@@ -655,7 +652,7 @@ function TabPerformance({ data, metrics }) {
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={atividadesChartData}>
-                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis dataKey="tipo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
@@ -732,7 +729,7 @@ function TabClientes({ data, metrics }) {
         <div className="p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <SectionTitle icon={Users} description="Carteira ativa com indicadores">Clientes</SectionTitle>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
               <select
                 value={filtroVendedora}
                 onChange={e => setFiltroVendedora(e.target.value)}
@@ -755,215 +752,348 @@ function TabClientes({ data, metrics }) {
           </div>
 
           <div className="flex items-center gap-2 mb-4">
-            <Badge variant="info">{clientesFiltrados.length} cliente{clientesFiltrados.length !== 1 ? 's' : ''}</BadgOÙ]]Û\ÜÓ[YOHÝ\ÝË^X]]ÈXHÛ\ÜÓ[YOHËY[^\ÛHXYÛ\ÜÓ[YOHÜ\XÜ\]Ú]KÖÌ
-HÛ\ÜÓ[YOH^[YKLÈLÈ^VÌL\H\\Ø\ÙHXÚÚ[Ë]ÚY\^]Ú]KÌÌÛ[YY][HÛY[OÝÛ\ÜÓ[YOH^[YKLÈLÈ^VÌL\H\\Ø\ÙHXÚÚ[Ë]ÚY\^]Ú]KÌÌÛ[YY][H\[ÝÛ\ÜÓ[YOH^XÙ[\KLÈLÈ^VÌL\H\\Ø\ÙHXÚÚ[Ë]ÚY\^]Ú]KÌÌÛ[YY][H\[ÛY]ÏÝÛ\ÜÓ[YOH^[YKLÈLÈ^VÌL\H\\Ø\ÙHXÚÚ[Ë]ÚY\^]Ú]KÌÌÛ[YY][H\ÜÛØ][ÝÛ\ÜÓ[YOH^XÙ[\KLÈLÈ^VÌL\H\\Ø\ÙHXÚÚ[Ë]ÚY\^]Ú]KÌÌÛ[YY][HX[ÏÝÛ\ÜÓ[YOH^\YÚKLÈLÈ^VÌL\H\\Ø\ÙHXÚÚ[Ë]ÚY\^]Ú]KÌÌÛ[YY][HÛÝYÏÝÛ\ÜÓ[YOH^\YÚKLÈLÈ^VÌL\H\\Ø\ÙHXÚÚ[Ë]ÚY\^]Ú]KÌÌÛ[YY][H[YÏÝÛ\ÜÓ[YOH^\YÚKLÈLÈ^VÌL\H\\Ø\ÙHXÚÚ[Ë]ÚY\^]Ú]KÌÌÛ[YY][HÛÛÝÝÝXYÙOØÛY[\Ñ[YÜËX\
+            <Badge variant="info">{clientesFiltrados.length} cliente{clientesFiltrados.length !== 1 ? 's' : ''}</Badge>
+          </div>
 
-ËJHO
-Ù^O^Ú_HÛ\ÜÓ[YOHÜ\XÜ\]Ú]KÖÌ×HÝ\Ë]Ú]KÖÌH[Ú][ÛXÛÛÜÈÛ\ÜÓ[YOHKLÈLÈ^]Ú]KÎÛ[YY][HØËÛY[_OÝÛ\ÜÓ[YOHKLÈLÈ^]Ú]KÍLØË\[OÝÛ\ÜÓ[YOHKLÈLÈ^XÙ[\Ü[Û\ÜÓ[YOH[[KY^][\ËXÙ[\Ø\LKHLKLHÝ[YY[^VÌLHÛ\Ù[ZXÛÝ[O^ÞÈXÚÙÜÝ[	Ý\[ÛY]ÐÛÛÜÖØË\[ÛY]×_LÛÛÜ\[ÛY]ÐÛÛÜÖØË\[ÛY]×H_OÜ[Û\ÜÓ[YOHËLKHLKHÝ[YY[Ý[O^ÞÈXÚÙÜÝ[\[ÛY]ÐÛÛÜÖØË\[ÛY]×H_HÏØË\[ÛY]ßBÜÜ[ÝÛ\ÜÓ[YOHKLÈLÈ^]Ú]KÍLØË\ÜÛØ][Ü]
-	È	ÊVÌ_OÝÛ\ÜÓ[YOHKLÈLÈ^XÙ[\^]Ú]KÍØË[QX[ßOÝÛ\ÜÓ[YOHKLÈLÈ^\YÚ^]Ú]KÍLÙ]Ý\[ÞJË[ÜÛÝYÊ_OÝÛ\ÜÓ[YOHKLÈLÈ^\YÚÛ[YY][H^]Ú]KÎÙ]Ý\[ÞJË[YÊ_OÝÛ\ÜÓ[YOHKLÈLÈ^\YÚÜ[Û\ÜÓ[YO^Ø^\ÛHÛ\Ù[ZXÛ	ØËÛÛ\Ø[ÈH
-È	Ý^Y[Y\[M	ÈËÛÛ\Ø[ÈH
-È	Ý^X[X\M	È	Ý^]Ú]KÌÌ	ßXOØËÛÛ\Ø[ßIOÜÜ[ÝÝ
-J_BØÛY[\Ñ[YÜË[ÝOOH	
-ÛÛÜ[^ÎHÛ\ÜÓ[YOHKN^XÙ[\^]Ú]KÌ^\ÛH[[HÛY[H[ÛÛYÏÝÝ
-_BÝÙOÝXOÙ]Ù]ÑÛ\ÜÐØ\Ù]
-BBËÈOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOBËÈPÒPÐSÂËÈOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOB[Ý[ÛXÚXØ[ÊÈ]KY]XÜÈJHÂËÈ\\Ù[\Ø[Ý[][ÛÂÛÛÝÙ[\YÈHÂÈÛYN	Õ^[HØ^X[	ËÚÜ	Õ^[IËÛÛÜ	ÈÌ
-
-	ËÜYY	ÙÜY^[IÈKÈÛYN	ÑØXY[H][\]ÉËÚÜ	ÑØXY[IËÛÛÜ	ÈÎXÙËÜYY	ÙÜYØXY[IÈBBÛÛÝÙ[\Ý]ÈHßBÙ[\YËÜXXÚ
-ÈOÂÛÛÝÛÛH
-]KÛÛX[È×JK[\O[YÜHOOHËÛYJBÛÛÝÜ[H
-]KÜ[X[È×JK[\O[YÜHOOHËÛYJBÛÛÝÛÛ[ÜHÛÛYXÙJ
-Ý[K
-HOÝ[H
-È
-[Ü
-K
-BÛÛÝÜ[[ÜHÜ[YXÙJ
-Ý[K
-HOÝ[H
-È
-[Ü
-K
-BÙ[\Ý]ÖÜËÚÜHHÂÛÛ[ÜÛÛÛÝ[ÛÛ[ÝÜ[[ÜÜ[ÛÝ[Ü[[ÝZ[T]NY]XÜËXP]X[ÈÛÛ[ÜÈY]XÜËXP]X[ÚXØ[ÓY\ÎY]XÜËXP]X[È
-ÛÛ[ÜÈY]XÜËXP]X[
-H
-Y]XÜËX\ÓÓY\ÈBJBÛÛÝY]SY[Ø[HY]XÜËY]U[ÜÛÛÝY]TÙ[X[[HX]Ý[
-Y]SY[Ø[È
-BÛÛÝÛÛ]HH
-Y]XÜË^PÛÛ\Ø[È
-HÈLÛÛÝY]T\Ù[\HY]SY[Ø[ÈËÈÚXØ[ÈÙ\[ÛÛÝÚXØ[Ó[X\HY]XÜËÚXØ[Õ[ÜÛÛÝÚXØ[Ô\ÜÚ[Z\ÝHHÚXØ[Ó[X\
-
-BÛÛÝÚXØ[ÓÝ[Z\ÝHHÚXØ[Ó[X\
-KMBÛÛÝÙ[\[ÜÈHÂÈÛYN	Ô\ÜÚ[Z\ÝIË[ÜÚXØ[Ô\ÜÚ[Z\ÝKÛÜ	ÈÙY
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Cliente</th>
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Perfil</th>
+                  <th className="text-center py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Termometro</th>
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Responsavel</th>
+                  <th className="text-center py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Deals</th>
+                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Cotado</th>
+                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Vendido</th>
+                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Conv.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clientesFiltrados.map((c, i) => (
+                  <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-3 text-white/80 font-medium">{c.cliente}</td>
+                    <td className="py-3 px-3 text-white/50">{c.perfil}</td>
+                    <td className="py-3 px-3 text-center">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${termometroColors[c.termometro]}20`, color: termometroColors[c.termometro] }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: termometroColors[c.termometro] }} />
+                        {c.termometro}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-white/50">{c.responsavel.split(' ')[0]}</td>
+                    <td className="py-3 px-3 text-center text-white/60">{c.numDeals}</td>
+                    <td className="py-3 px-3 text-right text-white/50">{fmtCurrency(c.valorCotado)}</td>
+                    <td className="py-3 px-3 text-right font-medium text-white/80">{fmtCurrency(c.vendido)}</td>
+                    <td className="py-3 px-3 text-right">
+                      <span className={`text-sm font-semibold ${c.conversao >= 60 ? 'text-emerald-400' : c.conversao >= 40 ? 'text-amber-400' : 'text-white/30'}`}>{c.conversao}%</span>
+                    </td>
+                  </tr>
+                ))}
+                {clientesFiltrados.length === 0 && (
+                  <tr><td colSpan={8} className="py-8 text-center text-white/20 text-sm">Nenhum cliente encontrado</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </GlassCard>
+    </div>
+  )
+}
 
+// =============================================
+// TAB: PROJECAO
+// =============================================
+function TabProjecao({ data, metrics }) {
+  // Per-seller calculations
+  const sellerDefs = [
+    { nome: 'Tayna Kazial', short: 'Tayna', color: '#06b6d4', gradId: 'gradTayna' },
+    { nome: 'Gabrieli Muneretto', short: 'Gabrieli', color: '#8b5cf6', gradId: 'gradGabrieli' }
+  ]
 
-	Ë\ØÎ	Ô][ÈY^MIIÈKÈÛYN	Ð\ÙIË[ÜÚXØ[Ó[X\ÛÜ	ÈÌ
-
-	Ë\ØÎ	ÓX[[È][È]X[	ÈKÈÛYN	ÓÝ[Z\ÝIË[ÜÚXØ[ÓÝ[Z\ÝKÛÜ	ÈÌLNIË\ØÎ	Ô][ÈXÙ[\HMIIÈKBËÈÚ\NXÙHY[Ø[8 %XÝ[][YÈX\[ÈÈY]BÛÛÝ^\Ò[[ÛHY]XÜËX\ÓÓY\ÂÛÛÝZ[\ÝÛ\ÈHÌK
-KLMKK^\Ò[[ÛK[\
-K\HO\[^ÙHOOHJBÛÛÝXÙSY[Ø[]HHZ[\ÝÛ\ËX\
-O
-ÂXN	ÙXY]NX]Ý[
+  const sellerStats = {}
+  sellerDefs.forEach(s => {
+    const won = (data.wonDeals || []).filter(d => d.vendedora === s.nome)
+    const open = (data.openDeals || []).filter(d => d.vendedora === s.nome)
+    const wonValor = won.reduce((sum, d) => sum + (d.valor || 0), 0)
+    const openValor = open.reduce((sum, d) => sum + (d.valor || 0), 0)
+    sellerStats[s.short] = {
+      wonValor,
+      wonCount: won.length,
+      openValor,
+      openCount: open.length,
+      dailyRate: metrics.diaAtual > 0 ? wonValor / metrics.diaAtual : 0,
+      projecaoMes: metrics.diaAtual > 0 ? (wonValor / metrics.diaAtual) * metrics.diasNoMes : 0
+    }
+  })
 
-Y]SY[Ø[È^\Ò[[Û
-H
-
-K^[NX]Ý[
-Ù[\Ý]Ë^[KZ[T]H
-
-KØXY[NX]Ý[
-Ù[\Ý]ËØXY[KZ[T]H
-
-BJJBËÈÚ\XÙHÙ[X[[8 %XÝ[][YÈÈXHHÙ[X[HÈY]HÙ[X[[ÛÛÝÙYZÑ^\ÈHÉÔÙYÉË	Õ\Ë	Ô]XIË	Ô]ZIË	ÔÙ^	×BÛÛÝXÙTÙ[X[[]HHÙYZÑ^\ËX\
+  const metaMensal = metrics.metaValor
+  const metaSemanal = Math.round(metaMensal / 4)
+  const convRate = (metrics.taxaConversao || 20) / 100
+  const metaPerSeller = metaMensal / 2
 
-XKJHO
-ÂXKY]NX]Ý[
+  // Projecao geral
+  const projecaoLinear = metrics.projecaoValor
+  const projecaoPessimista = projecaoLinear * 0.85
+  const projecaoOtimista = projecaoLinear * 1.15
 
-Y]TÙ[X[[È
-JH
-
-H
-ÈJJK^[NX]Ý[
-Ù[\Ý]Ë^[KZ[T]H
-
-H
-ÈJJKØXY[NX]Ý[
-Ù[\Ý]ËØXY[KZ[T]H
-
-H
-ÈJJBJJBËÈÚ\ÈÈ	
-Û[YHHÜÜ[YY\ÈXÙ\ÜØ\[ÈÈ]X[ËÈ\[[HXÙ\ÜØ\[ÈH
-Y]WÜ\Ý[WÜÜÝ[YÜHÈ^WØÛÛ\Ø[ÊBËÈ[ÜÝHÜÙ[X[HÈY\È]X[È\[[HØYH[YÜHXÚ\ØBËÈY[Ø[ÜÙ[X[HÈY\ÂÛÛÝÛ[YSY[Ø[]HHÌKË
-KX\
-Ù[HOÂÛÛÝÝY\ÈHÙ[HÈ
-ÛÛÝÚ[HÈ\[ÙÎÙ[H	ÜÙ[_XBÙ[\YËÜXXÚ
-ÈOÂÛÛÝÝ]ÈHÙ[\Ý]ÖÜËÚÜBÛÛÝÛÛ]P\]ZHHÝ]ËÛÛ[Ü
-X]Z[ÝY\ËY]XÜËXP]X[È^\Ò[[Û
-HÈ
-Y]XÜËXP]X[È^\Ò[[ÛJBÛÛÝØ\HX]X^
-Y]T\Ù[\HÛÛ]P\]ZK
-BÛÛÝYYYHÛÛ]HÈØ\ÈÛÛ]HÚ[Ø	ÜËÚÜWÛXÙ\ÜØ\[ØHHX]Ý[
-YYY
-BÚ[Ø	ÜËÚÜWÜ\[[XHHX]Ý[
-Ý]ËÜ[[ÜBJB]\Ú[JBËÈÙ[X[[ÜXHHÙ[X[BÛÛÝÛ[YTÙ[X[[]HHÙYZÑ^\ËX\
+  const cenarios = [
+    { nome: 'Pessimista', valor: projecaoPessimista, cor: '#ef4444', desc: 'Ritmo reduz 15%' },
+    { nome: 'Base', valor: projecaoLinear, cor: '#06b6d4', desc: 'Mantendo ritmo atual' },
+    { nome: 'Otimista', valor: projecaoOtimista, cor: '#10b981', desc: 'Ritmo acelera 15%' },
+  ]
 
-XKJHOÂÛÛÝÝÙ[X[HH
-H
-ÈJHÈ
-BÛÛÝY]TÙ[T\Ù[\HY]TÙ[X[[ÈÛÛÝÚ[HÈ\[ÙÎXHBÙ[\YËÜXXÚ
-ÈOÂÛÛÝÝ]ÈHÙ[\Ý]ÖÜËÚÜBÛÛÝÛÛ\Ý[XYÈHÝ]ËZ[T]H
-
-H
-ÈJBÛÛÝØ\HX]X^
-Y]TÙ[T\Ù[\HÛÛ\Ý[XYË
-BÛÛÝYYYHÛÛ]HÈØ\ÈÛÛ]HÚ[Ø	ÜËÚÜWÛXÙ\ÜØ\[ØHHX]Ý[
-YYY
-BÚ[Ø	ÜËÚÜWÜ\[[XHHX]Ý[
-Ý]ËÜ[[ÜBJB]\Ú[JBËÈ\ÝÜXÛÈXÚÙ]YY[ÈHÚXÛÂÛÛÝYXÚY[ÚXQ]HHY]XÜË\ÝÜXÛËX\
-O
-ÂY\Î]Y\ÊY\ÊKXÚÙ]YY[ÎXÚÙ]ÛYY[ËÚXÛÎÚXÛ×ÛYY[×ÙX\ÂJJB]\
-]Û\ÜÓ[YOHÜXÙK^KNËÊÔ\ÈÚXØ[È
-ßB]Û\ÜÓ[YOHÜYÜYXÛÛËLYÜYXÛÛËMØ\MÔPØ\X[HÚXØ[È[X\[YO^Ù]Ý\[ÞTÚÜ
-ÚXØ[Ó[X\_HÝX]O^ØXH	ÛY]XÜËXP]X[KÉÛY]XÜËX\ÓÓY\ßXHXÛÛ^Õ[[Õ\HÛÛÜHÞX[ÏÔPØ\X[HØ\\HY]H[YO^ÛY]XÜËØ\Y]HÈ]Ý\[ÞTÚÜ
-Y]XÜËØ\Y]JH	ÓY]H]YHIßHÝX]O^ÛY]XÜËØ\Y]HÈ[[H	Ù]Ý\[ÞTÚÜ
-Y]XÜËØ\Y]J_X[Y[YHXÛÛ^Õ\Ù]HÛÛÜ^ÛY]XÜËØ\Y]HÈ	Ø[X\È	Ù[Y\[	ßHÏÔPØ\X[H[[Ý[ÚX[[YO^Ù]Ý\[ÞTÚÜ
-Y]XÜËÝ[[[[Ü_HÝX]O^Ø	ÛY]XÜËÝ[[[ÛÝ[HX[ÈX\ÜØHXÛÛ^Ñ[[HÛÛÜH[Û]ÏÔPØ\X[H[ØÚYYKÑXH[YO^Ù]Ý\[ÞTÚÜ
-Y]XÜËXP]X[ÈY]XÜËÝ[ÛÛ[ÜÈY]XÜËXP]X[
-_HÝX]OHYYXHX\XHXÛÛ^Ö\HÛÛÜH[Y\[ÏÙ]ËÊÙ[\[ÜÈ
-ßBÛ\ÜÐØ\]Û\ÜÓ[YOHMÙXÝ[Û]HXÛÛ^Õ[[Õ\H\ØÜ\[Û^ØÚXØ[È\H	Ù]Y\Ñ[
-Y]XÜËY\Ð]X[
-_XOÙ[\[ÜÈHXÚ[Y[ÏÔÙXÝ[Û]O]Û\ÜÓ[YOHÜYÜYXÛÛËLHYÜYXÛÛËLÈØ\M]MØÙ[\[ÜËX\
+  // Chart 1: Pace Mensal — acumulado diario vs meta
+  const daysInMonth = metrics.diasNoMes
+  const milestones = [1, 5, 10, 15, 20, 25, daysInMonth].filter((v, i, arr) => arr.indexOf(v) === i)
+  const paceMensalData = milestones.map(d => ({
+    dia: `D${d}`,
+    Meta: Math.round((metaMensal / daysInMonth) * d),
+    Tayna: Math.round(sellerStats.Tayna.dailyRate * d),
+    Gabrieli: Math.round(sellerStats.Gabrieli.dailyRate * d)
+  }))
 
-ËJHOÂÛÛÝÓY]HHY]XÜËY]U[ÜÈ
-Ë[ÜÈY]XÜËY]U[ÜH
-L]\
-]Ù^O^Ú_HÛ\ÜÓ[YOHÝ[Y^Ü\Ü\]Ú]KÖÌ
-HMHÝ[O^ÞÈXÚÙÜÝ[	ØËÛÜL_O]Û\ÜÓ[YOH^][\ËXÙ[\Ø\LXLÈ]Û\ÜÓ[YOHËLÈLÈÝ[YY[Ý[O^ÞÈXÚÙÜÝ[ËÛÜ_HÏÛ\ÜÓ[YOH^\ÛHÛ[YY][H^]Ú]KÍÌØËÛY_OÜÙ]Û\ÜÓ[YOH^LÛXÛXLHÝ[O^ÞÈÛÛÜËÛÜ_OÙ]Ý\[ÞTÚÜ
-Ë[Ü_OÜÛ\ÜÓ[YOH^^È^]Ú]KÌÌXLØË\ØßOÜ]Û\ÜÓ[YOH^][\ËXÙ[\Ø\LÙÜ\ÜÐ\[YO^ØË[ÜHX^^ÛY]XÜËY]U[ÜHÛÛÜ^ØËÛÜOOH	ÈÌLNIÈÈ	Ù[Y\[	ÈËÛÜOOH	ÈÙY
+  // Chart 2: Pace Semanal — acumulado no dia da semana vs meta semanal
+  const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex']
+  const paceSemanalData = weekDays.map((dia, i) => ({
+    dia,
+    Meta: Math.round((metaSemanal / 5) * (i + 1)),
+    Tayna: Math.round(sellerStats.Tayna.dailyRate * (i + 1)),
+    Gabrieli: Math.round(sellerStats.Gabrieli.dailyRate * (i + 1))
+  }))
 
+  // Charts 3 & 4: Volume de Oportunidades necessario vs atual
+  // Pipeline necessario = (meta_restante_por_vendedora / taxa_conversao)
+  // Mostra por semana do mes quanto pipeline cada vendedora precisa
 
-	ÈÈ	ÜÜÙIÈ	ØÞX[ßHÚ^OHÛHÚÝÓX[^Ù[Ù_HÏÜ[Û\ÜÓ[YOH^^ÈÛ[YY][H^]Ú]KÍÚ[ËLÙ]Ý
-ÓY]K
-_HHY]OÜÜ[Ù]Ù]
-BJ_BÙ]Ù]ÑÛ\ÜÐØ\ËÊ
-Ú\ÈHÚXØ[È8 %ÜY
-ßB]Û\ÜÓ[YOHÜYÜYXÛÛËLHÎÜYXÛÛËLØ\MËÊÚ\NXÙHY[Ø[
-ßBÛ\ÜÐØ\]Û\ÜÓ[YOHMÙXÝ[Û]HXÛÛ^Õ[[Õ\OXÙHY[Ø[ÈY]OÔÙXÝ[Û]OÛ\ÜÓ[YOH^VÌL\H^]Ú]KÌÌ[]LXMÚXØ[ÈXÝ[][YHÜ[YÜHÈ][È]X[Ü]Û\ÜÓ[YOHVÌH\ÜÛÚ]PÛÛZ[\ÚYHL	HZYÚHL	H\XPÚ\]O^ÜXÙSY[Ø[]_OYÏ[X\ÜYY[YHÜY^[HOHLOHHLHHÝÜÙÙ]HIHÝÜÛÛÜHÌ
-
-ÝÜÜXÚ]O^ÌßHÏÝÜÙÙ]HMIHÝÜÛÛÜHÌ
-
-ÝÜÜXÚ]O^ÌHÏÛ[X\ÜYY[[X\ÜYY[YHÜYØXY[HOHLOHHLHHÝÜÙÙ]HIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^ÌßHÏÝÜÙÙ]HMIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^ÌHÏÛ[X\ÜYY[ÙYÏØ\\ÚX[ÜYÝÚÙQ\Ú\^OHÈÈÝÚÙOHØJMKMKMK
-HÏ^\È]RÙ^OHXHXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HÏP^\ÈXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HXÚÑÜX]\^ÝO]Ý\[ÞTÚÜ
-_HÏÛÛ\ÛÛ[^ÏÝ\ÝÛUÛÛ\ÜX]\^ÝO]Ý\[ÞJ_HÏHÏ\XH\OH[ÛÝÛH]RÙ^OH^[H[YOH^[HÝÚÙOHÌ
-
-ÝÚÙUÚY^ÌH[H\
-ÙÜY^[JHÏ\XH\OH[ÛÝÛH]RÙ^OHØXY[H[YOHØXY[HÝÚÙOHÎXÙÝÚÙUÚY^ÌH[H\
-ÙÜYØXY[JHÏ\XH\OH[ÛÝÛH]RÙ^OHY]H[YOHY]HÝÚÙOHÙNYLÝÚÙUÚY^ÌH[HÛHÝÚÙQ\Ú\^OHH
-HÏÐ\XPÚ\Ô\ÜÛÚ]PÛÛZ[\Ù]Ù]ÑÛ\ÜÐØ\ËÊÚ\XÙHÙ[X[[
-ßBÛ\ÜÐØ\]Û\ÜÓ[YOHMÙXÝ[Û]HXÛÛ^Õ[[Õ\OXÙHÙ[X[[ÈY]OÔÙXÝ[Û]OÛ\ÜÓ[YOH^VÌL\H^]Ú]KÌÌ[]LXMÚXØ[ÈXÝ[][YHHÙ[X[H]X[Ü]Û\ÜÓ[YOHVÌH\ÜÛÚ]PÛÛZ[\ÚYHL	HZYÚHL	H\XPÚ\]O^ÜXÙTÙ[X[[]_OYÏ[X\ÜYY[YHÜY^[TÙ[HOHLOHHLHHÝÜÙÙ]HIHÝÜÛÛÜHÌ
-
-ÝÜÜXÚ]O^ÌßHÏÝÜÙÙ]HMIHÝÜÛÛÜHÌ
-
-ÝÜÜXÚ]O^ÌHÏÛ[X\ÜYY[[X\ÜYY[YHÜYØXY[TÙ[HOHLOHHLHHÝÜÙÙ]HIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^ÌßHÏÝÜÙÙ]HMIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^ÌHÏÛ[X\ÜYY[ÙYÏØ\\ÚX[ÜYÝÚÙQ\Ú\^OHÈÈÝÚÙOHØJMKMKMK
-HÏ^\È]RÙ^OHXHXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HÏP^\ÈXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HXÚÑÜX]\^ÝO]Ý\[ÞTÚÜ
-_HÏÛÛ\ÛÛ[^ÏÝ\ÝÛUÛÛ\ÜX]\^ÝO]Ý\[ÞJ_HÏHÏ\XH\OH[ÛÝÛH]RÙ^OH^[H[YOH^[HÝÚÙOHÌ
-
-ÝÚÙUÚY^ÌH[H\
-ÙÜY^[TÙ[JHÏ\XH\OH[ÛÝÛH]RÙ^OHØXY[H[YOHØXY[HÝÚÙOHÎXÙÝÚÙUÚY^ÌH[H\
-ÙÜYØXY[TÙ[JHÏ\XH\OH[ÛÝÛH]RÙ^OHY]H[YOHY]HÝÚÙOHÙNYLÝÚÙUÚY^ÌH[HÛHÝÚÙQ\Ú\^OHH
-HÏÐ\XPÚ\Ô\ÜÛÚ]PÛÛZ[\Ù]Ù]ÑÛ\ÜÐØ\ËÊÚ\ÎÛ[YHÜÜ[YY\ÈY[Ø[
-ßBÛ\ÜÐØ\]Û\ÜÓ[YOHMÙXÝ[Û]HXÛÛ^Ó^Y\ßOÛ[YHÜÜ[YY\ÈY\ÏÔÙXÝ[Û]OÛ\ÜÓ[YOH^VÌL\H^]Ú]KÌÌ[]LXM\[[HXÙ\ÜØ\[ÈÈ]X[
-^HÛÛÙ]Ý
-Y]XÜË^PÛÛ\Ø[Ë
-_JOÜ]Û\ÜÓ[YOHVÌH\ÜÛÚ]PÛÛZ[\ÚYHL	HZYÚHL	H\XPÚ\]O^ÝÛ[YSY[Ø[]_OYÏ[X\ÜYY[YHÜY^[UÛOHLOHHLHHÝÜÙÙ]HIHÝÜÛÛÜHÌ
-
-ÝÜÜXÚ]O^Ì_HÏÝÜÙÙ]HMIHÝÜÛÛÜHÌ
-
-ÝÜÜXÚ]O^ÌHÏÛ[X\ÜYY[[X\ÜYY[YHÜYØXY[UÛOHLOHHLHHÝÜÙÙ]HIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^Ì_HÏÝÜÙÙ]HMIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^ÌHÏÛ[X\ÜYY[ÙYÏØ\\ÚX[ÜYÝÚÙQ\Ú\^OHÈÈÝÚÙOHØJMKMKMK
-HÏ^\È]RÙ^OH\[ÙÈXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HÏP^\ÈXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HXÚÑÜX]\^ÝO]Ý\[ÞTÚÜ
-_HÏÛÛ\ÛÛ[^ÏÝ\ÝÛUÛÛ\ÜX]\^ÝO]Ý\[ÞJ_HÏHÏ\XH\OH[ÛÝÛH]RÙ^OH^[WÜ\[[H[YOH^[H\[[HÝÚÙOHÌ
-
-ÝÚÙUÚY^ÌH[H\
-ÙÜY^[UÛ
-HÏ\XH\OH[ÛÝÛH]RÙ^OH^[WÛXÙ\ÜØ\[È[YOH^[HXÙ\ÜØ\[ÈÝÚÙOHÌ
-
-ÝÚÙUÚY^ÌH[HÛHÝÚÙQ\Ú\^OHH
-HÜXÚ]O^ÌHÏ\XH\OH[ÛÝÛH]RÙ^OHØXY[WÜ\[[H[YOHØXY[H\[[HÝÚÙOHÎXÙÝÚÙUÚY^ÌH[H\
-ÙÜYØXY[UÛ
-HÏ\XH\OH[ÛÝÛH]RÙ^OHØXY[WÛXÙ\ÜØ\[È[YOHØXY[HXÙ\ÜØ\[ÈÝÚÙOHÎXÙÝÚÙUÚY^ÌH[HÛHÝÚÙQ\Ú\^OHH
-HÜXÚ]O^ÌHÏÐ\XPÚ\Ô\ÜÛÚ]PÛÛZ[\Ù]Ù]ÑÛ\ÜÐØ\ËÊÚ\
-Û[YHÜÜ[YY\ÈÙ[X[[
-ßBÛ\ÜÐØ\]Û\ÜÓ[YOHMÙXÝ[Û]HXÛÛ^Ó^Y\ßOÛ[YHÜÜ[YY\ÈÙ[X[OÔÙXÝ[Û]OÛ\ÜÓ[YOH^VÌL\H^]Ú]KÌÌ[]LXM\[[HXÙ\ÜØ\[ÈÈ]X[HÙ[X[OÜ]Û\ÜÓ[YOHVÌH\ÜÛÚ]PÛÛZ[\ÚYHL	HZYÚHL	H\XPÚ\]O^ÝÛ[YTÙ[X[[]_OYÏ[X\ÜYY[YHÜY^[UÛÙ[HOHLOHHLHHÝÜÙÙ]HIHÝÜÛÛÜHÌ
-
-ÝÜÜXÚ]O^Ì_HÏÝÜÙÙ]HMIHÝÜÛÛÜHÌ
-
-ÝÜÜXÚ]O^ÌHÏÛ[X\ÜYY[[X\ÜYY[YHÜYØXY[UÛÙ[HOHLOHHLHHÝÜÙÙ]HIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^Ì_HÏÝÜÙÙ]HMIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^ÌHÏÛ[X\ÜYY[ÙYÏØ\\ÚX[ÜYÝÚÙQ\Ú\^OHÈÈÝÚÙOHØJMKMKMK
-HÏ^\È]RÙ^OH\[ÙÈXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HÏP^\ÈXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HXÚÑÜX]\^ÝO]Ý\[ÞTÚÜ
-_HÏÛÛ\ÛÛ[^ÏÝ\ÝÛUÛÛ\ÜX]\^ÝO]Ý\[ÞJ_HÏHÏ\XH\OH[ÛÝÛH]RÙ^OH^[WÜ\[[H[YOH^[H\[[HÝÚÙOHÌ
-
-ÝÚÙUÚY^ÌH[H\
-ÙÜY^[UÛÙ[JHÏ\XH\OH[ÛÝÛH]RÙ^OH^[WÛXÙ\ÜØ\[È[YOH^[HXÙ\ÜØ\[ÈÝÚÙOHÌ
-
-ÝÚÙUÚY^ÌH[HÛHÝÚÙQ\Ú\^OHH
-HÜXÚ]O^ÌHÏ\XH\OH[ÛÝÛH]RÙ^OHØXY[WÜ\[[H[YOHØXY[H\[[HÝÚÙOHÎXÙÝÚÙUÚY^ÌH[H\
-ÙÜYØXY[UÛÙ[JHÏ\XH\OH[ÛÝÛH]RÙ^OHØXY[WÛXÙ\ÜØ\[È[YOHØXY[HXÙ\ÜØ\[ÈÝÚÙOHÎXÙÝÚÙUÚY^ÌH[HÛHÝÚÙQ\Ú\^OHH
-HÜXÚ]O^ÌHÏÐ\XPÚ\Ô\ÜÛÚ]PÛÛZ[\Ù]Ù]ÑÛ\ÜÐØ\Ù]ËÊXÚÙ]YY[ÈHÚXÛÈ
-ßBÛ\ÜÐØ\]Û\ÜÓ[YOHMÙXÝ[Û]HXÛÛ^ÐÛØÚßOXÚÙ]YY[ÈHÚXÛÈH[OÔÙXÝ[Û]O]Û\ÜÓ[YOHVÌÌH\ÜÛÚ]PÛÛZ[\ÚYHL	HZYÚHL	H\XPÚ\]O^ÙYXÚY[ÚXQ]_OYÏ[X\ÜYY[YHÜYXÚÙ]OHLOHHLHHÝÜÙÙ]HIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^ÌßHÏÝÜÙÙ]HMIHÝÜÛÛÜHÎXÙÝÜÜXÚ]O^ÌHÏÛ[X\ÜYY[ÙYÏØ\\ÚX[ÜYÝÚÙQ\Ú\^OHÈÈÝÚÙOHØJMKMKMK
-HÏ^\È]RÙ^OHY\ÈXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HÏP^\ÈP^\ÒYHYXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HXÚÑÜX]\^ÝO]Ý\[ÞTÚÜ
-_HÏP^\ÈP^\ÒYHYÚÜY[][ÛHYÚXÚÏ^ÞÈ[	ÜØJMKMKMK
-IËÛÚ^NLH_H^\Ó[O^Ù[Ù_HXÚÓ[O^Ù[Ù_HXÚÑÜX]\^ÝO	ÝYHÏÛÛ\ÛÛ[^ÏÝ\ÝÛUÛÛ\ÜX]\^Ê[YJHO[YHOOH	ÐÚXÛÈ
-X\ÊIÈÈ	ÝHX\Ø]Ý\[ÞJ_HÏHÏ\XHP^\ÒYHY\OH[ÛÝÛH]RÙ^OHXÚÙ]YY[È[YOHXÚÙ]YY[ÈÝÚÙOHÎXÙÝÚÙUÚY^ÌH[H\
-ÙÜYXÚÙ]
-HÏ\XHP^\ÒYHYÚ\OH[ÛÝÛH]RÙ^OHÚXÛÈ[YOHÚXÛÈ
-X\ÊHÝÚÙOHÙNYLÝÚÙUÚY^ÌH[HÛHÝÚÙQ\Ú\^OHH
-HÏÐ\XPÚ\Ô\ÜÛÚ]PÛÛZ[\Ù]Ù]ÑÛ\ÜÐØ\Ù]
-BB
+  // Mensal: por semana do mes
+  const volumeMensalData = [1, 2, 3, 4].map(sem => {
+    const pctMes = sem / 4
+    const point = { periodo: `Sem ${sem}` }
+    sellerDefs.forEach(s => {
+      const stats = sellerStats[s.short]
+      const wonAteAqui = stats.wonValor * Math.min(pctMes, metrics.diaAtual / daysInMonth) / (metrics.diaAtual / daysInMonth || 1)
+      const gap = Math.max(metaPerSeller - wonAteAqui, 0)
+      const needed = convRate > 0 ? gap / convRate : 0
+      point[`${s.short}_necessario`] = Math.round(needed)
+      point[`${s.short}_pipeline`] = Math.round(stats.openValor)
+    })
+    return point
+  })
+
+  // Semanal: por dia da semana
+  const volumeSemanalData = weekDays.map((dia, i) => {
+    const pctSemana = (i + 1) / 5
+    const metaSemPerSeller = metaSemanal / 2
+    const point = { periodo: dia }
+    sellerDefs.forEach(s => {
+      const stats = sellerStats[s.short]
+      const wonEstimado = stats.dailyRate * (i + 1)
+      const gap = Math.max(metaSemPerSeller - wonEstimado, 0)
+      const needed = convRate > 0 ? gap / convRate : 0
+      point[`${s.short}_necessario`] = Math.round(needed)
+      point[`${s.short}_pipeline`] = Math.round(stats.openValor)
+    })
+    return point
+  })
+
+  // Historico ticket medio e ciclo
+  const eficienciaData = metrics.historico.map(h => ({
+    mes: fmtMes(h.mes),
+    ticketMedio: h.ticket_medio,
+    ciclo: h.ciclo_medio_dias
+  }))
+
+  return (
+    <div className="space-y-8">
+      {/* KPIs projecao */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KPICard label="Projecao Linear" value={fmtCurrencyShort(projecaoLinear)} subtitle={`Dia ${metrics.diaAtual}/${metrics.diasNoMes}`} icon={TrendingUp} color="cyan" />
+        <KPICard label="Gap para Meta" value={metrics.gapMeta > 0 ? fmtCurrencyShort(metrics.gapMeta) : 'Meta batida!'} subtitle={metrics.gapMeta > 0 ? `Faltam ${fmtCurrencyShort(metrics.gapMeta)}` : undefined} icon={Target} color={metrics.gapMeta > 0 ? 'amber' : 'emerald'} />
+        <KPICard label="Funil Potencial" value={fmtCurrencyShort(metrics.totalFunilValor)} subtitle={`${metrics.totalFunilCount} deals abertos`} icon={Funnel} color="violet" />
+        <KPICard label="Velocidade/Dia" value={fmtCurrencyShort(metrics.diaAtual > 0 ? metrics.totalWonValor / metrics.diaAtual : 0)} subtitle="Media diaria" icon={Zap} color="emerald" />
+      </div>
+
+      {/* Cenarios */}
+      <GlassCard>
+        <div className="p-6">
+          <SectionTitle icon={TrendingUp} description={`Projecao para ${fmtMesFull(metrics.mesAtual)}`}>Cenarios de Fechamento</SectionTitle>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            {cenarios.map((c, i) => {
+              const vsMeta = metrics.metaValor > 0 ? (c.valor / metrics.metaValor) * 100 : 0
+              return (
+                <div key={i} className="rounded-xl border border-white/[0.06] p-5" style={{ background: `${c.cor}08` }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-3 h-3 rounded-full" style={{ background: c.cor }} />
+                    <p className="text-sm font-medium text-white/70">{c.nome}</p>
+                  </div>
+                  <p className="text-2xl font-bold mb-1" style={{ color: c.cor }}>{fmtCurrencyShort(c.valor)}</p>
+                  <p className="text-xs text-white/30 mb-2">{c.desc}</p>
+                  <div className="flex items-center gap-2">
+                    <ProgressBar value={c.valor} max={metrics.metaValor} color={c.cor === '#10b981' ? 'emerald' : c.cor === '#ef4444' ? 'rose' : 'cyan'} size="sm" showLabel={false} />
+                    <span className="text-xs font-medium text-white/40 shrink-0">{fmtPct(vsMeta, 0)} da meta</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* 4 Charts de Projecao — 2x2 grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Chart 1: Pace Mensal */}
+        <GlassCard>
+          <div className="p-6">
+            <SectionTitle icon={TrendingUp}>Pace Mensal vs Meta</SectionTitle>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">Projecao acumulada por vendedora no ritmo atual</p>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={paceMensalData}>
+                  <defs>
+                    <linearGradient id="gradTayna" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradGabrieli" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="dia" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                  <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
+                  <Area type="monotone" dataKey="Tayna" name="Tayna" stroke="#06b6d4" strokeWidth={2} fill="url(#gradTayna)" />
+                  <Area type="monotone" dataKey="Gabrieli" name="Gabrieli" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradGabrieli)" />
+                  <Area type="monotone" dataKey="Meta" name="Meta" stroke="#f59e0b" strokeWidth={2} fill="none" strokeDasharray="5 5" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Chart 2: Pace Semanal */}
+        <GlassCard>
+          <div className="p-6">
+            <SectionTitle icon={TrendingUp}>Pace Semanal vs Meta</SectionTitle>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">Projecao acumulada na semana atual</p>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={paceSemanalData}>
+                  <defs>
+                    <linearGradient id="gradTaynaSem" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradGabrieliSem" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="dia" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                  <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
+                  <Area type="monotone" dataKey="Tayna" name="Tayna" stroke="#06b6d4" strokeWidth={2} fill="url(#gradTaynaSem)" />
+                  <Area type="monotone" dataKey="Gabrieli" name="Gabrieli" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradGabrieliSem)" />
+                  <Area type="monotone" dataKey="Meta" name="Meta" stroke="#f59e0b" strokeWidth={2} fill="none" strokeDasharray="5 5" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Chart 3: Volume Oportunidades Mensal */}
+        <GlassCard>
+          <div className="p-6">
+            <SectionTitle icon={Layers}>Volume Oportunidades | Mes</SectionTitle>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">Pipeline necessario vs atual (taxa conv. {fmtPct(metrics.taxaConversao, 0)})</p>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={volumeMensalData}>
+                  <defs>
+                    <linearGradient id="gradTaynaVol" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradGabrieliVol" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="periodo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                  <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
+                  <Area type="monotone" dataKey="Tayna_pipeline" name="Tayna Pipeline" stroke="#06b6d4" strokeWidth={2} fill="url(#gradTaynaVol)" />
+                  <Area type="monotone" dataKey="Tayna_necessario" name="Tayna Necessario" stroke="#06b6d4" strokeWidth={2} fill="none" strokeDasharray="5 5" opacity={0.6} />
+                  <Area type="monotone" dataKey="Gabrieli_pipeline" name="Gabrieli Pipeline" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradGabrieliVol)" />
+                  <Area type="monotone" dataKey="Gabrieli_necessario" name="Gabrieli Necessario" stroke="#8b5cf6" strokeWidth={2} fill="none" strokeDasharray="5 5" opacity={0.6} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Chart 4: Volume Oportunidades Semanal */}
+        <GlassCard>
+          <div className="p-6">
+            <SectionTitle icon={Layers}>Volume Oportunidades | Semana</SectionTitle>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">Pipeline necessario vs atual na semana</p>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={volumeSemanalData}>
+                  <defs>
+                    <linearGradient id="gradTaynaVolSem" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradGabrieliVolSem" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="periodo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                  <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
+                  <Area type="monotone" dataKey="Tayna_pipeline" name="Tayna Pipeline" stroke="#06b6d4" strokeWidth={2} fill="url(#gradTaynaVolSem)" />
+                  <Area type="monotone" dataKey="Tayna_necessario" name="Tayna Necessario" stroke="#06b6d4" strokeWidth={2} fill="none" strokeDasharray="5 5" opacity={0.6} />
+                  <Area type="monotone" dataKey="Gabrieli_pipeline" name="Gabrieli Pipeline" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradGabrieliVolSem)" />
+                  <Area type="monotone" dataKey="Gabrieli_necessario" name="Gabrieli Necessario" stroke="#8b5cf6" strokeWidth={2} fill="none" strokeDasharray="5 5" opacity={0.6} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* Ticket Medio e Ciclo */}
+      <GlassCard>
+        <div className="p-6">
+          <SectionTitle icon={Clock}>Ticket Medio e Ciclo de Venda</SectionTitle>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={eficienciaData}>
+                <defs>
+                  <linearGradient id="gradTicket" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="left" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}d`} />
+                <Tooltip content={<CustomTooltip formatter={(v, name) => name === 'Ciclo (dias)' ? `${v} dias` : fmtCurrency(v)} />} />
+                <Area yAxisId="left" type="monotone" dataKey="ticketMedio" name="Ticket Medio" stroke="#8b5cf6" strokeWidth={2} fill="url(#gradTicket)" />
+                <Area yAxisId="right" type="monotone" dataKey="ciclo" name="Ciclo (dias)" stroke="#f59e0b" strokeWidth={2} fill="none" strokeDasharray="5 5" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </GlassCard>
+    </div>
+  )
+}
