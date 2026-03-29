@@ -353,17 +353,26 @@ async function clickupFetch(endpoint, params = {}) {
 }
 
 async function fetchFaturadoTasks(mesFiltro) {
+  // ClickUp API exige statuses[] como array params
   const allTasks = []
   let page = 0
 
   while (true) {
-    const result = await clickupFetch(`list/${CLICKUP_FLASH_FTL_LIST}/task`, {
-      page: String(page),
-      limit: '100',
-      statuses: 'em transito,faturado',
-      include_closed: 'true',
-      subtasks: 'true'
+    const url = new URL(`https://api.clickup.com/api/v2/list/${CLICKUP_FLASH_FTL_LIST}/task`)
+    url.searchParams.set('page', String(page))
+    url.searchParams.set('limit', '100')
+    url.searchParams.set('include_closed', 'true')
+    url.searchParams.set('subtasks', 'true')
+    // Append statuses[] as array params (ClickUp API requirement)
+    const finalUrl = url.toString() + '&statuses[]=em%20transito&statuses[]=faturado'
+
+    const res = await fetch(finalUrl, {
+      headers: { 'Authorization': CLICKUP_API_TOKEN }
     })
+    if (!res.ok) {
+      throw new Error(`ClickUp API error: ${res.status} ${res.statusText}`)
+    }
+    const result = await res.json()
 
     if (!result.tasks || result.tasks.length === 0) break
     allTasks.push(...result.tasks)
