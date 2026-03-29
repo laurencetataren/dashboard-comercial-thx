@@ -1,5 +1,5 @@
-// Vercel Serverless Function — GET /api/sheets
-// Busca dados REAIS do Pipedrive (Pipeline 7 — Funil Oportunidade) e retorna JSON formatado
+// Vercel Serverless Function â GET /api/sheets
+// Busca dados REAIS do Pipedrive (Pipeline 7 â Funil Oportunidade) e retorna JSON formatado
 // Fallback para dados demo se PIPEDRIVE_API_KEY nao estiver configurada
 
 const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY
@@ -12,6 +12,11 @@ const CLICKUP_FRETE_EMPRESA_FIELD = 'b0d60416-41fd-4dcd-95f8-8d44db267745'
 const CLICKUP_COLETA_FIELD = 'ee0f910c-b3dc-4e7f-8e5f-e00f0fa04707'
 const CLICKUP_MOTIVO_NOSHOW_FIELD = '947cdd58-3c6d-4d78-a0ce-b303af389b69'
 
+// Statuses que indicam que a carga PASSOU por "em transito" (executada)
+const PASSED_EM_TRANSITO = ['em transito', 'entregues', 'liberado faturamento', 'faturado', 'finalizado']
+// Statuses de perda na execucao
+const EXECUTION_LOST = ['no show', 'cancelada']
+
 // Mapeamento de stages do Pipeline 7
 const STAGES = {
   64: 'BUGS',
@@ -21,9 +26,16 @@ const STAGES = {
   56: 'Proposta Aprovada'
 }
 
-// Stages que aparecem no funil do dashboard (exclui BUGS)
-const FUNIL_STAGES = [54, 55, 80, 56]
-const FUNIL_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'BID', 'Proposta Aprovada']
+// Stages que aparecem no funil do dashboard (exclui BUGS e BID)
+const FUNIL_STAGES = [54, 55, 56]
+const FUNIL_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'Proposta Aprovada']
+
+// Pipedrive Organizations â Clientes Ativos
+const CLIENTES_ATIVOS_FILTER_ID = 31374
+const ORG_STATUS_TERMOMETRO_KEY = '4abea383919e4b58f5896ed5cf571d89396d1bc5'
+const ORG_PERFIL_COMPRA_KEY = 'e52751b2ca4cdbe74f9f473e158d2f8689c7e66f'
+const STATUS_TERMOMETRO_MAP = { '252': 'ATIVO', '253': 'ATENCAO', '254': 'RISCO', '255': 'INATIVO' }
+const PERFIL_COMPRA_MAP = { '249': 'A - Cotacao diaria', '250': 'B - Cotacao semanal', '251': 'C - Cotacao esporadica' }
 
 // Mapeamento de users
 const USERS = {
@@ -273,71 +285,47 @@ function buildAtividades(activities) {
   return Object.values(byUser)
 }
 
-function buildClientesAtivos(openDeals, wonDeals, lostDeals, mesFilter) {
-  // Agrupa deals por organizacao, filtrando por mes se especificado
-  const byOrg = {}
-
-  // Filtra won/lost por mes se mesFilter fornecido
-  const wonFiltered = mesFilter ? wonDeals.filter(d => d.mes === mesFilter) : wonDeals
-  const lostFiltered = mesFilter ? lostDeals.filter(d => d.mes === mesFilter) : lostDeals
-
-  const processDeal = (d, status) => {
-    const org = d.empresa || d.titulo
-    if (!org) return
-    if (!byOrg[org]) {
-      byOrg[org] = {
-        cliente: org,
-        perfil: 'Cliente',
-        responsavel: d.vendedora,
-        numDeals: 0,
-        valorCotado: 0,
-        vendido: 0,
-        wonCount: 0,
-        lostCount: 0,
-        openCount: 0
-      }
-    }
-    byOrg[org].numDeals++
-    byOrg[org].valorCotado += d.valor
-    if (status === 'won') {
-      byOrg[org].vendido += d.valor
-      byOrg[org].wonCount++
-    }
-    if (status === 'lost') byOrg[org].lostCount++
-    if (status === 'open') byOrg[org].openCount++
-    if (d.vendedora && d.vendedora !== 'Desconhecido') {
-      byOrg[org].responsavel = d.vendedora
-    }
-  }
-
-  openDeals.forEach(d => processDeal(d, 'open'))
-  wonFiltered.forEach(d => processDeal(d, 'won'))
-  lostFiltered.forEach(d => processDeal(d, 'lost'))
-
-  // Calcula termometro e conversao
-  return Object.values(byOrg)
-    .map(c => {
-      const conversao = c.valorCotado > 0 ? Math.round((c.vendido / c.valorCotado) * 100) : 0
-      let termometro = 'Frio'
-      if (c.openCount > 0 && c.wonCount > 0) termometro = 'Quente'
-      else if (c.openCount > 0 || c.wonCount > 0) termometro = 'Morno'
-
-      return {
-        cliente: c.cliente,
-        perfil: c.perfil,
-        termometro,
-        responsavel: c.responsavel,
-        numDeals: c.numDeals,
-        valorCotado: c.valorCotado,
-        vendido: c.vendido,
-        conversao
-      }
-    })
-    .sort((a, b) => b.valorCotado - a.valorCotado)
-    .slice(0, 50) // Top 50 clientes
+async function fetchClientesAtivos() {
+  // Busca organizacoes do Pipedrive usando filtro "Clientes Ativos" (ID 31374)
+  const orgs = await fetchAllPages('organizations', { filter_id: String(CLIENTES_ATIVOS_FILTER_ID) })
+  return orgs
 }
 
-// ========== CLICKUP API (Flash FTL — Faturado) ==========
+function processClientesAtivos(orgs, wonDeals, mesFiltro) {
+  // Calcula valor vendido por org no mes filtrado
+  const wonByOrg = {}
+  const wonFiltered = mesFiltro ? wonDeals.filter(d => d.mes === mesFiltro) : wonDeals
+  wonFiltered.forEach(d => {
+    const orgName = d.empresa
+    if (!orgName) return
+    if (!wonByOrg[orgName]) wonByOrg[orgName] = { valor: 0, count: 0 }
+    wonByOrg[orgName].valor += d.valor
+    wonByOrg[orgName].count++
+  })
+
+  return orgs.map(o => {
+    const nome = o.name || ''
+    const ownerName = o.owner_name || (typeof o.owner_id === 'object' ? o.owner_id?.name : '') || 'N/A'
+    const termometro = STATUS_TERMOMETRO_MAP[String(o[ORG_STATUS_TERMOMETRO_KEY])] || 'N/A'
+    const perfil = PERFIL_COMPRA_MAP[String(o[ORG_PERFIL_COMPRA_KEY])] || 'N/A'
+    const wonData = wonByOrg[nome] || { valor: 0, count: 0 }
+
+    return {
+      cliente: nome,
+      termometro,
+      perfil,
+      responsavel: ownerName,
+      pessoas: o.people_count || 0,
+      wonDealsCount: o.won_deals_count || 0,
+      closedDealsCount: o.closed_deals_count || 0,
+      openDealsCount: o.open_deals_count || 0,
+      vendidoMes: wonData.valor,
+      dealsGanhosMes: wonData.count
+    }
+  }).sort((a, b) => b.wonDealsCount - a.wonDealsCount)
+}
+
+// ========== CLICKUP API (Flash FTL â Faturado) ==========
 
 async function clickupFetch(endpoint, params = {}) {
   const url = new URL(`https://api.clickup.com/api/v2/${endpoint}`)
@@ -352,8 +340,9 @@ async function clickupFetch(endpoint, params = {}) {
   return res.json()
 }
 
-async function fetchFaturadoTasks(mesFiltro) {
-  // ClickUp API exige statuses[] como array params
+async function fetchFlashFTLTasks(mesFiltro) {
+  // Busca TODAS as tasks do Flash FTL (sem filtro de status) incluindo fechadas
+  // Logica: faturado = TUDO que passou por "em transito"
   const allTasks = []
   let page = 0
 
@@ -363,10 +352,8 @@ async function fetchFaturadoTasks(mesFiltro) {
     url.searchParams.set('limit', '100')
     url.searchParams.set('include_closed', 'true')
     url.searchParams.set('subtasks', 'true')
-    // Append statuses[] as array params (ClickUp API requirement)
-    const finalUrl = url.toString() + '&statuses[]=em%20transito&statuses[]=faturado'
 
-    const res = await fetch(finalUrl, {
+    const res = await fetch(url.toString(), {
       headers: { 'Authorization': CLICKUP_API_TOKEN }
     })
     if (!res.ok) {
@@ -380,6 +367,7 @@ async function fetchFaturadoTasks(mesFiltro) {
     page++
   }
 
+  // Filtra por mes usando campo Coleta
   const [ano, mesNum] = mesFiltro.split('-').map(Number)
 
   const filtered = allTasks.filter(task => {
@@ -389,7 +377,14 @@ async function fetchFaturadoTasks(mesFiltro) {
     return coletaDate.getFullYear() === ano && (coletaDate.getMonth() + 1) === mesNum
   })
 
-  return filtered.map(task => {
+  // Exclui tasks com status "a contratar" (ainda no pipeline, nao entraram em execucao)
+  const execucaoTasks = filtered.filter(task => {
+    const status = (task.status?.status || '').toLowerCase()
+    return status !== 'a contratar'
+  })
+
+  // Mapeia campos customizados
+  return execucaoTasks.map(task => {
     const freteField = task.custom_fields?.find(f => f.id === CLICKUP_FRETE_EMPRESA_FIELD)
     const noShowField = task.custom_fields?.find(f => f.id === CLICKUP_MOTIVO_NOSHOW_FIELD)
     const coletaField = task.custom_fields?.find(f => f.id === CLICKUP_COLETA_FIELD)
@@ -400,8 +395,9 @@ async function fetchFaturadoTasks(mesFiltro) {
 
     return {
       id: task.id,
+      customId: task.custom_id || '',
       nome: task.name || '',
-      status: task.status?.status || '',
+      status: (task.status?.status || '').toLowerCase(),
       freteEmpresa: freteValor,
       motivoNoShow,
       dataColeta: coletaDate
@@ -409,14 +405,39 @@ async function fetchFaturadoTasks(mesFiltro) {
   })
 }
 
-function processFaturadoData(tasks) {
-  const totalFaturado = tasks.reduce((sum, t) => sum + t.freteEmpresa, 0)
-  const countCargas = tasks.length
+function processFlashFTLData(tasks) {
+  // Faturado = tudo que PASSOU por "em transito"
+  const faturadoTasks = tasks.filter(t => PASSED_EM_TRANSITO.includes(t.status))
+  const totalFaturado = faturadoTasks.reduce((sum, t) => sum + t.freteEmpresa, 0)
+
+  // Closer FTL = perdas na execucao (no show + cancelada)
+  const noShowTasks = tasks.filter(t => t.status === 'no show')
+  const canceladaTasks = tasks.filter(t => t.status === 'cancelada')
+  const lostTasks = [...noShowTasks, ...canceladaTasks]
+
+  const totalCargas = tasks.length
+  const executadas = faturadoTasks.length
+  const noShowCount = noShowTasks.length
+  const canceladaCount = canceladaTasks.length
+  const conversionPct = totalCargas > 0 ? Math.round((executadas / totalCargas) * 1000) / 10 : 0
 
   return {
-    totalFaturado,
-    countCargas,
-    tasks
+    faturado: {
+      totalFaturado,
+      countCargas: faturadoTasks.length,
+      tasks: faturadoTasks
+    },
+    closerFTL: {
+      totalCargas,
+      executadas,
+      noShowCount,
+      canceladaCount,
+      lostCount: lostTasks.length,
+      conversionPct,
+      noShowTasks,
+      canceladaTasks,
+      lostTasks
+    }
   }
 }
 
@@ -459,17 +480,18 @@ export default async function handler(req, res) {
     const startOfFilterMonth = `${mesFiltro}-01`
     const endOfFilterMonth = `${mesFiltro}-31`
 
-    // Busca dados em paralelo (todos usuarios, everyone=1 + ClickUp faturado)
+    // Busca dados em paralelo (todos usuarios, everyone=1 + ClickUp Flash FTL)
     const clickupPromise = CLICKUP_API_TOKEN
-      ? fetchFaturadoTasks(mesFiltro).catch(err => { console.error('ClickUp error:', err); return [] })
+      ? fetchFlashFTLTasks(mesFiltro).catch(err => { console.error('ClickUp error:', err); return [] })
       : Promise.resolve([])
 
-    const [rawOpen, rawWon, rawLost, rawActivities, rawFaturado] = await Promise.all([
+    const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs] = await Promise.all([
       fetchOpenDeals(),
       fetchWonDeals(),
       fetchLostDeals(),
       fetchActivities(startOfFilterMonth, endOfFilterMonth),
-      clickupPromise
+      clickupPromise,
+      fetchClientesAtivos().catch(err => { console.error('Orgs error:', err); return [] })
     ])
 
     // Processa dados
@@ -477,8 +499,8 @@ export default async function handler(req, res) {
     const wonDeals = processWonDeals(rawWon, mesAtual)
     const lostDeals = processLostDeals(rawLost, mesAtual)
     const atividades = buildAtividades(rawActivities)
-    const clientesAtivos = buildClientesAtivos(openDeals, wonDeals, lostDeals, mesFiltro)
-    const faturadoData = processFaturadoData(rawFaturado)
+    const clientesAtivos = processClientesAtivos(rawOrgs, wonDeals, mesFiltro)
+    const { faturado: faturadoData, closerFTL: closerFTLData } = processFlashFTLData(rawFlashFTL)
 
     // Meses disponiveis para filtro (ultimos 12 meses)
     const mesesDisponiveis = []
@@ -503,7 +525,8 @@ export default async function handler(req, res) {
       metas: getMetas(),
       atividades,
       clientesAtivos,
-      faturado: faturadoData
+      faturado: faturadoData,
+      closerFTL: closerFTLData
     }
 
     // Cache 5 minutos
@@ -555,7 +578,7 @@ function getDemoData() {
     ],
     funil: [
       { nome: 'Pedido de Cotacao', count: 2, valor: 112000 },
-      { nome: 'Em Negociacao', count: 5, valor: 328000 },
+      { nome: 'Em Negociacao', count: 4, valor: 273000 },
       { nome: 'Proposta Aprovada', count: 1, valor: 91000 }
     ],
     performanceVendedoras: [
@@ -587,21 +610,38 @@ function getDemoData() {
       { vendedora: 'Gabrieli Muneretto', ligacoes: 63, emails: 98, reunioes: 8, propostas: 14, followups: 32, whatsapp: 112 }
     ],
     clientesAtivos: [
-      { cliente: 'Alpha Logistica', perfil: 'Transportadora', termometro: 'Quente', responsavel: 'Tayna Kazial', numDeals: 3, valorCotado: 135000, vendido: 85000, conversao: 63 },
-      { cliente: 'Beta Industria', perfil: 'Embarcador', termometro: 'Morno', responsavel: 'Gabrieli Muneretto', numDeals: 2, valorCotado: 156000, vendido: 78000, conversao: 50 },
-      { cliente: 'Gamma Express', perfil: 'Transportadora', termometro: 'Frio', responsavel: 'Tayna Kazial', numDeals: 1, valorCotado: 32000, vendido: 0, conversao: 0 },
-      { cliente: 'Delta Corp', perfil: 'Embarcador', termometro: 'Quente', responsavel: 'Gabrieli Muneretto', numDeals: 4, valorCotado: 280000, vendido: 189000, conversao: 68 },
-      { cliente: 'Epsilon Cargo', perfil: 'Transportadora', termometro: 'Morno', responsavel: 'Tayna Kazial', numDeals: 2, valorCotado: 110000, vendido: 55000, conversao: 50 },
-      { cliente: 'Zeta Log', perfil: 'Operador Logistico', termometro: 'Quente', responsavel: 'Gabrieli Muneretto', numDeals: 5, valorCotado: 360000, vendido: 240000, conversao: 67 },
-      { cliente: 'Eta Transportes', perfil: 'Transportadora', termometro: 'Morno', responsavel: 'Tayna Kazial', numDeals: 2, valorCotado: 134000, vendido: 67000, conversao: 50 },
-      { cliente: 'Theta Freight', perfil: 'Embarcador', termometro: 'Frio', responsavel: 'Gabrieli Muneretto', numDeals: 1, valorCotado: 43000, vendido: 0, conversao: 0 },
-      { cliente: 'Iota Rodoviario', perfil: 'Transportadora', termometro: 'Quente', responsavel: 'Tayna Kazial', numDeals: 3, valorCotado: 195000, vendido: 142000, conversao: 73 },
-      { cliente: 'Kappa Express', perfil: 'Operador Logistico', termometro: 'Morno', responsavel: 'Gabrieli Muneretto', numDeals: 2, valorCotado: 190000, vendido: 95000, conversao: 50 }
+      { cliente: 'Taurus', termometro: 'ATIVO', perfil: 'A - Cotacao diaria', responsavel: 'Tayna Kazial', pessoas: 5, wonDealsCount: 95, closedDealsCount: 196, openDealsCount: 2, vendidoMes: 85000, dealsGanhosMes: 4 },
+      { cliente: 'WEG', termometro: 'ATIVO', perfil: 'A - Cotacao diaria', responsavel: 'Gabrieli Muneretto', pessoas: 3, wonDealsCount: 50, closedDealsCount: 80, openDealsCount: 1, vendidoMes: 120000, dealsGanhosMes: 6 },
+      { cliente: 'Embrasa', termometro: 'ATIVO', perfil: 'A - Cotacao diaria', responsavel: 'Gabrieli Muneretto', pessoas: 4, wonDealsCount: 40, closedDealsCount: 65, openDealsCount: 0, vendidoMes: 78000, dealsGanhosMes: 3 },
+      { cliente: 'Construtora Grifo', termometro: 'ATIVO', perfil: 'B - Cotacao semanal', responsavel: 'Gabrieli Muneretto', pessoas: 2, wonDealsCount: 5, closedDealsCount: 8, openDealsCount: 0, vendidoMes: 32000, dealsGanhosMes: 2 },
+      { cliente: 'Marques e Bezerra', termometro: 'ATENCAO', perfil: 'B - Cotacao semanal', responsavel: 'Tayna Kazial', pessoas: 5, wonDealsCount: 16, closedDealsCount: 36, openDealsCount: 1, vendidoMes: 45000, dealsGanhosMes: 2 },
+      { cliente: 'Arpeco', termometro: 'RISCO', perfil: 'B - Cotacao semanal', responsavel: 'Tayna Kazial', pessoas: 2, wonDealsCount: 0, closedDealsCount: 2, openDealsCount: 0, vendidoMes: 0, dealsGanhosMes: 0 },
+      { cliente: 'Softys', termometro: 'INATIVO', perfil: 'A - Cotacao diaria', responsavel: 'Gabrieli Muneretto', pessoas: 10, wonDealsCount: 16, closedDealsCount: 16, openDealsCount: 0, vendidoMes: 0, dealsGanhosMes: 0 }
     ],
     faturado: {
       totalFaturado: 520000,
       countCargas: 38,
       tasks: []
+    },
+    closerFTL: {
+      totalCargas: 45,
+      executadas: 38,
+      noShowCount: 3,
+      canceladaCount: 4,
+      lostCount: 7,
+      conversionPct: 84.4,
+      noShowTasks: [
+        { id: 'ns1', customId: 'CARGA-7001', nome: 'Embrasa - Sumare/SP x Rio Verde/GO', status: 'no show', freteEmpresa: 8500, motivoNoShow: 'Motorista desistiu', dataColeta: '2026-03-10' },
+        { id: 'ns2', customId: 'CARGA-7015', nome: 'Piacentini - Almirante Tamandare/PR x Jaguariaiva/PR', status: 'no show', freteEmpresa: 4200, motivoNoShow: 'Veiculo quebrado', dataColeta: '2026-03-14' },
+        { id: 'ns3', customId: 'CARGA-7030', nome: 'Embrasa - Catalao/GO x Araguari/MG', status: 'no show', freteEmpresa: 6800, motivoNoShow: 'Sem retorno', dataColeta: '2026-03-20' }
+      ],
+      canceladaTasks: [
+        { id: 'c1', customId: 'CARGA-7005', nome: 'WEG - Aracati/CE x Jandaira/RN', status: 'cancelada', freteEmpresa: 12000, motivoNoShow: '', dataColeta: '2026-03-08' },
+        { id: 'c2', customId: 'CARGA-7012', nome: 'I3M Engenharia - Aparecida de Goiania/GO x Varzea Grande/MT', status: 'cancelada', freteEmpresa: 9500, motivoNoShow: '', dataColeta: '2026-03-13' },
+        { id: 'c3', customId: 'CARGA-7020', nome: 'Embrasa - Artur Nogueira/SP x Riachao do Jacuipe/BA', status: 'cancelada', freteEmpresa: 7800, motivoNoShow: '', dataColeta: '2026-03-17' },
+        { id: 'c4', customId: 'CARGA-7025', nome: 'WEG - Blumenau/SC x Gravatai/RS', status: 'cancelada', freteEmpresa: 5500, motivoNoShow: '', dataColeta: '2026-03-19' }
+      ],
+      lostTasks: []
     }
   }
 }
