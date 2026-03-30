@@ -3,10 +3,10 @@ import {
   BarChart3, Funnel, Users, ArrowLeftRight, TrendingUp,
   RefreshCw, AlertTriangle, Clock, Target, DollarSign,
   Award, XCircle, ArrowUpRight, ArrowDownRight, Zap,
-  ChevronRight, Layers, Truck, Ban
+  ChevronRight, Layers, Truck, Ban, CheckCircle, Phone, Activity
 } from 'lucide-react'
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend
 } from 'recharts'
 
@@ -889,6 +889,286 @@ function TabInsideSales({ data, metrics }) {
             </div>
           </div>
         </GlassCard>
+      </div>
+
+      {/* ============================================= */}
+      {/* CAMADA 1: DISCIPLINA (Azul #1A5276)           */}
+      {/* ============================================= */}
+      <div className="mt-10">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-1.5 h-8 rounded-full" style={{ background: '#1A5276' }} />
+          <h2 className="text-lg font-bold tracking-tight" style={{ color: '#5DADE2' }}>Disciplina</h2>
+          <span className="text-[10px] uppercase tracking-widest text-white/25">processo e rotina</span>
+        </div>
+
+        {data.atividadesStatus && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <KPICard label="Agendadas" value={data.atividadesStatus.totais?.agendadas || 0} icon={Clock} color="blue" />
+              <KPICard label="Executadas" value={data.atividadesStatus.totais?.executadas || 0} icon={CheckCircle} color="emerald" subtitle={data.atividadesStatus.totais?.agendadas > 0 ? Math.round((data.atividadesStatus.totais.executadas / data.atividadesStatus.totais.agendadas) * 100) + '% taxa execucao' : ''} />
+              <KPICard label="Atrasadas" value={data.atividadesStatus.totais?.atrasadas || 0} icon={AlertTriangle} color="rose" />
+            </div>
+          </div>
+        )}
+
+      {/* Horizontal bar per vendedora */}
+            {data.atividadesStatus && (
+            <GlassCard>
+              <div className="p-6">
+                <SectionTitle icon={BarChart3} description="Agendadas vs Executadas vs Atrasadas por vendedora">Disciplina de Atividades</SectionTitle>
+                <div className="space-y-4 mt-4">
+                  {(data.atividadesStatus.porVendedora || []).map((v, i) => {
+                    const maxVal = Math.max(v.agendadas, 1)
+                    return (
+                      <div key={i} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-white/70 font-medium">{v.vendedora}</span>
+                          <span className="text-[10px] text-white/30">{v.executadas}/{v.agendadas} executadas | {v.atrasadas} atrasadas</span>
+                        </div>
+                        <div className="flex gap-1 h-5">
+                          <div className="rounded-l" style={{ width: (v.executadas / maxVal) * 100 + '%', background: '#10b981', minWidth: v.executadas > 0 ? '4px' : '0' }} />
+                          <div style={{ width: ((v.agendadas - v.executadas) / maxVal) * 100 + '%', background: '#3b82f6', minWidth: (v.agendadas - v.executadas) > 0 ? '4px' : '0' }} />
+                          <div className="rounded-r" style={{ width: (v.atrasadas / maxVal) * 100 + '%', background: '#ef4444', minWidth: v.atrasadas > 0 ? '4px' : '0' }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div className="flex gap-4 mt-2 text-[10px] text-white/30">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Executadas</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Pendentes</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" /> Atrasadas</span>
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+            )}
+
+        {/* Tempo de Resposta a Cotacao */}
+        {data.tempoResposta && (
+          <div className="mt-4">
+            <GlassCard>
+              <div className="p-6">
+                <SectionTitle icon={Zap} description="SLA: 2h para primeiro contato">Tempo de Resposta a Cotacao</SectionTitle>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className={'w-24 h-24 rounded-full flex items-center justify-center border-4 ' + (data.tempoResposta.mediaGeral <= 2 ? 'border-emerald-500 bg-emerald-500/10' : data.tempoResposta.mediaGeral <= 4 ? 'border-amber-500 bg-amber-500/10' : 'border-rose-500 bg-rose-500/10')}>
+                      <div className="text-center">
+                        <p className={'text-2xl font-bold ' + (data.tempoResposta.mediaGeral <= 2 ? 'text-emerald-400' : data.tempoResposta.mediaGeral <= 4 ? 'text-amber-400' : 'text-rose-400')}>{data.tempoResposta.mediaGeral}h</p>
+                        <p className="text-[9px] text-white/30 uppercase">media</p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-white/30 mt-2">{data.tempoResposta.totalAnalisados} deals analisados</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-wider text-white/30 font-medium mb-3">Distribuicao</p>
+                    {[{label:'Ate 2h (SLA)',value:data.tempoResposta.distribuicao?.ate2h||0,color:'#10b981'},{label:'2h a 4h',value:data.tempoResposta.distribuicao?.de2a4h||0,color:'#f59e0b'},{label:'4h a 8h',value:data.tempoResposta.distribuicao?.de4a8h||0,color:'#ef4444'},{label:'Mais de 8h',value:data.tempoResposta.distribuicao?.mais8h||0,color:'#991b1b'}].map((faixa, i) => {
+                      const total = (data.tempoResposta.distribuicao?.ate2h||0)+(data.tempoResposta.distribuicao?.de2a4h||0)+(data.tempoResposta.distribuicao?.de4a8h||0)+(data.tempoResposta.distribuicao?.mais8h||0)
+                      const pct = total > 0 ? (faixa.value / total) * 100 : 0
+                      return (<div key={i} className="flex items-center gap-2"><span className="text-xs text-white/50 w-24">{faixa.label}</span><div className="flex-1 h-3 bg-white/5 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{width:pct+'%',background:faixa.color}} /></div><span className="text-xs text-white/40 w-8 text-right">{faixa.value}</span></div>)
+                    })}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-wider text-white/30 font-medium mb-3">Por vendedora</p>
+                    {Object.entries(data.tempoResposta.porVendedora || {}).map(([nome, media], i) => (
+                      <div key={i} className="flex items-center justify-between py-1.5 border-b border-white/[0.03]">
+                        <span className="text-sm text-white/70">{nome}</span>
+                        <span className={'text-sm font-semibold ' + (media <= 2 ? 'text-emerald-400' : media <= 4 ? 'text-amber-400' : 'text-rose-400')}>{media}h</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+        )}
+
+        {/* Deals sem Proxima Atividade */}
+        {data.dealsOrfaos && data.dealsOrfaos.total > 0 && (
+          <div className="mt-4">
+            <GlassCard>
+              <div className="p-6">
+                <SectionTitle icon={AlertTriangle} description={data.dealsOrfaos.total + ' deals sem follow-up agendado'}>Deals Orfaos (sem proxima atividade)</SectionTitle>
+                <div className="overflow-x-auto mt-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/[0.06]">
+                        <th className="text-left py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Deal</th>
+                        <th className="text-left py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Vendedora</th>
+                        <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Dias Parado</th>
+                        <th className="text-right py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data.dealsOrfaos.deals || []).slice(0, 10).map((d, i) => (
+                        <tr key={d.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                          <td className="py-2 px-3 text-white/80">{d.titulo || d.empresa || ('Deal #' + d.id)}</td>
+                          <td className="py-2 px-3 text-white/50">{d.vendedora}</td>
+                          <td className="py-2 px-3 text-center">
+                            <span className={'inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ' + (d.diasParado >= 7 ? 'bg-rose-500/20 text-rose-400' : d.diasParado >= 3 ? 'bg-amber-500/20 text-amber-400' : 'bg-white/10 text-white/60')}>{d.diasParado}d</span>
+                          </td>
+                          <td className="py-2 px-3 text-right text-white/40">{fmtCurrencyShort(d.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+        )}
+      </div>
+
+      {/* ============================================= */}
+      {/* CAMADA 2: ESFORCO (Laranja #E67E22)           */}
+      {/* ============================================= */}
+      <div className="mt-10">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-1.5 h-8 rounded-full" style={{ background: '#E67E22' }} />
+          <h2 className="text-lg font-bold tracking-tight" style={{ color: '#F5B041' }}>Esforco</h2>
+          <span className="text-[10px] uppercase tracking-widest text-white/25">volume e intensidade</span>
+        </div>
+
+        {/* Ligacoes Realizadas 30 dias */}
+        {data.atividadesDiarias && data.atividadesDiarias.length > 0 && (
+          <GlassCard>
+            <div className="p-6">
+              <SectionTitle icon={Phone} description="Volume diario de ligacoes (ultimos 30 dias)">Ligacoes Realizadas</SectionTitle>
+              <div className="h-[280px] mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data.atividadesDiarias.map(d => {
+                    const point = { dia: d.dia.substring(5) }
+                    Object.entries(d).forEach(([k, val]) => { if (k !== 'dia' && val) point[k.split(' ')[0]] = val.ligacoes || 0 })
+                    return point
+                  })}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                    <XAxis dataKey="dia" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                    <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<CustomTooltip />} />
+                    {chartVendedoras.map((v, i) => (
+                      <Line key={i} type="monotone" dataKey={v.nome} name={v.nomeCompleto} stroke={v.fill} strokeWidth={2} dot={false} />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
+        {/* Frequencia de Follow-up por Deal */}
+        {data.followupFrequency && (
+          <div className="mt-4">
+            <GlassCard>
+              <div className="p-6">
+                <SectionTitle icon={Activity} description="Media de atividades por deal: ganhos vs perdidos">Frequencia de Follow-up</SectionTitle>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+                  <div className="flex items-center justify-center gap-8">
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-emerald-400">{data.followupFrequency.mediaWon}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-white/30 mt-1">media won</p>
+                      <p className="text-xs text-white/20">atividades/deal</p>
+                    </div>
+                    <div className="text-white/10 text-2xl">vs</div>
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-rose-400">{data.followupFrequency.mediaLost}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-white/30 mt-1">media lost</p>
+                      <p className="text-xs text-white/20">atividades/deal</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-wider text-white/30 font-medium mb-2">Distribuicao por faixa</p>
+                    {[{label:'0 atividades',won:data.followupFrequency.distribuicaoWon?.zero,lost:data.followupFrequency.distribuicaoLost?.zero},{label:'1-2 atividades',won:data.followupFrequency.distribuicaoWon?.um_dois,lost:data.followupFrequency.distribuicaoLost?.um_dois},{label:'3-5 atividades',won:data.followupFrequency.distribuicaoWon?.tres_cinco,lost:data.followupFrequency.distribuicaoLost?.tres_cinco},{label:'6-10 atividades',won:data.followupFrequency.distribuicaoWon?.seis_dez,lost:data.followupFrequency.distribuicaoLost?.seis_dez},{label:'10+ atividades',won:data.followupFrequency.distribuicaoWon?.mais_dez,lost:data.followupFrequency.distribuicaoLost?.mais_dez}].map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <span className="text-white/40 w-24">{f.label}</span>
+                        <span className="text-emerald-400 w-8 text-right">{f.won || 0}</span>
+                        <span className="text-white/10">|</span>
+                        <span className="text-rose-400 w-8">{f.lost || 0}</span>
+                      </div>
+                    ))}
+                    <div className="flex gap-4 mt-1 text-[10px] text-white/25">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Won</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" /> Lost</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+        )}
+      </div>
+
+      {/* ============================================= */}
+      {/* CAMADA 3: RESULTADO (Verde #27AE60)            */}
+      {/* ============================================= */}
+      <div className="mt-10">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-1.5 h-8 rounded-full" style={{ background: '#27AE60' }} />
+          <h2 className="text-lg font-bold tracking-tight" style={{ color: '#58D68D' }}>Resultado</h2>
+          <span className="text-[10px] uppercase tracking-widest text-white/25">output e impacto</span>
+        </div>
+
+        {/* Sales Velocity */}
+        {data.salesVelocity && (
+          <GlassCard>
+            <div className="p-6">
+              <SectionTitle icon={Zap} description="Velocity = (Deals x Valor Medio x Conversao) / Ciclo Medio">Sales Velocity</SectionTitle>
+              <div className="mt-4">
+                <div className="flex items-center justify-center mb-6">
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-emerald-400">{fmtCurrencyShort(data.salesVelocity.geral?.velocity || 0)}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/30 mt-1">velocity/dia</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                  <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                    <p className="text-xl font-bold text-cyan-400">{data.salesVelocity.geral?.numDeals || 0}</p>
+                    <p className="text-[10px] text-white/30 mt-1">Deals</p>
+                  </div>
+                  <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                    <p className="text-xl font-bold text-violet-400">{fmtCurrencyShort(data.salesVelocity.geral?.valorMedio || 0)}</p>
+                    <p className="text-[10px] text-white/30 mt-1">Valor Medio</p>
+                  </div>
+                  <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                    <p className="text-xl font-bold text-amber-400">{data.salesVelocity.geral?.conversao || 0}%</p>
+                    <p className="text-[10px] text-white/30 mt-1">Conversao</p>
+                  </div>
+                  <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                    <p className="text-xl font-bold text-rose-400">{data.salesVelocity.geral?.cicloMedio || 0}d</p>
+                    <p className="text-[10px] text-white/30 mt-1">Ciclo Medio</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-[11px] uppercase tracking-wider text-white/30 font-medium">Por vendedora</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/[0.06]">
+                          <th className="text-left py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Vendedora</th>
+                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Velocity</th>
+                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Deals</th>
+                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Valor Medio</th>
+                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Conversao</th>
+                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Ciclo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(data.salesVelocity.porVendedora || {}).map(([nome, v], i) => (
+                          <tr key={i} className="border-b border-white/[0.03]">
+                            <td className="py-2 px-3 text-white/70 font-medium">{nome}</td>
+                            <td className="py-2 px-3 text-center text-emerald-400 font-semibold">{fmtCurrencyShort(v.velocity)}</td>
+                            <td className="py-2 px-3 text-center text-white/50">{v.numDeals}</td>
+                            <td className="py-2 px-3 text-center text-white/50">{fmtCurrencyShort(v.valorMedio)}</td>
+                            <td className="py-2 px-3 text-center text-white/50">{v.conversao}%</td>
+                            <td className="py-2 px-3 text-center text-white/50">{v.cicloMedio}d</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </GlassCard>
+        )}
       </div>
 
     </div>
