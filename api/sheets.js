@@ -64,6 +64,21 @@ const ACTIVITY_MAP = {
   'tentativa_agendamento_de_r': 'ligacoes'
 }
 
+// Normaliza nome de vendedora para evitar duplicidade por acentuacao ou variante de ID
+function normalizeVendedoraName(name) {
+  if (!name) return name
+  const s = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+  if (s.startsWith('tayna')) return 'Tayna Kazial'
+  if (s.startsWith('gabrieli')) return 'Gabrieli Muneretto'
+  return name
+}
+
+// Extrai user_id de atividade (Pipedrive pode retornar numero ou objeto)
+function getActivityUserId(activity) {
+  if (typeof activity.user_id === 'object' && activity.user_id?.id) return activity.user_id.id
+  return activity.user_id
+}
+
 // ========== PIPEDRIVE API HELPERS ==========
 
 async function pipedriveFetch(endpoint, params = {}) {
@@ -126,8 +141,9 @@ async function fetchLostDeals(sinceDate) {
 }
 
 async function fetchActivities(startDate, endDate) {
-  // Busca atividades REALIZADAS no periodo, max 5 paginas
+  // Busca atividades REALIZADAS no periodo de TODOS os usuarios, max 5 paginas
   const activities = await fetchAllPages('activities', {
+    user_id: '0',
     start_date: startDate,
     end_date: endDate,
     done: '1'
@@ -136,7 +152,9 @@ async function fetchActivities(startDate, endDate) {
 }
 
 async function fetchPendingActivities(startDate, endDate) {
+  // Busca atividades PENDENTES de TODOS os usuarios
   const activities = await fetchAllPages('activities', {
+    user_id: '0',
     start_date: startDate,
     end_date: endDate,
     done: '0'
@@ -150,7 +168,7 @@ async function fetchActivities30Days() {
   const startStr = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`
   const endStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
   const activities = await fetchAllPages('activities', {
-    start_date: startStr, end_date: endStr, done: '1'
+    user_id: '0', start_date: startStr, end_date: endStr, done: '1'
   }, null, 10)
   return activities
 }
@@ -162,7 +180,7 @@ async function fetchOverdueActivities() {
   const startStr = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-01`
   const endStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`
   const activities = await fetchAllPages('activities', {
-    start_date: startStr, end_date: endStr, done: '0'
+    user_id: '0', start_date: startStr, end_date: endStr, done: '0'
   }, null, 5)
   return activities
 }
@@ -274,8 +292,8 @@ function buildPerformance(wonDeals, mesAtual) {
     porVendedora[nome] = { nome, count: 0, valor: 0 }
   })
   wonMesAtual.forEach(d => {
-    const v = d.vendedora
-    if (!porVendedora[v]) porVendedora[v] = { nome: v, count: 0, valor: 0 }
+    const v = normalizeVendedoraName(d.vendedora)
+    if (!porVendedora[v]) return // ignora vendedoras nao mapeadas
     porVendedora[v].count++
     porVendedora[v].valor += d.valor
   })
@@ -339,8 +357,8 @@ function buildAtividades(activities) {
   })
 
   activities.forEach(a => {
-    const userId = a.user_id
-    const userName = USERS[userId]
+    const userId = getActivityUserId(a)
+    const userName = VENDEDORAS[userId]
     if (!userName) return // Ignora users que nao sao vendedoras
 
     if (!byUser[userName]) {
@@ -403,7 +421,7 @@ function buildAtividadesStatus(doneActivities, pendingActivities, overdueActivit
   })
 
   doneActivities.forEach(a => {
-    const userName = VENDEDORAS[a.user_id]
+    const userName = VENDEDORAS[getActivityUserId(a)]
     if (!userName) return
     if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 }
     byVendedora[userName].executadas++
