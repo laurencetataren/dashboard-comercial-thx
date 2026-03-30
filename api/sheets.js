@@ -350,7 +350,7 @@ async function fetchFlashFTLTasks(mesFiltro) {
   const allTasks = []
   let page = 0
 
-  while (true) {
+  while (page < 3) {
     const url = new URL(`https://api.clickup.com/api/v2/list/${CLICKUP_FLASH_FTL_LIST}/task`)
     url.searchParams.set('page', String(page))
     url.searchParams.set('limit', '100')
@@ -498,6 +498,7 @@ export default async function handler(req, res) {
       ? fetchFlashFTLTasks(mesFiltro).catch(err => { console.error('ClickUp error:', err); return [] })
       : Promise.resolve([])
 
+    console.log('Starting parallel fetch at', Date.now())
     const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs] = await Promise.all([
       fetchOpenDeals(),
       fetchWonDeals(sinceDateStr),
