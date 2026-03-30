@@ -275,7 +275,7 @@ function TabVisaoGeral({ data, metrics }) {
               </div>
             </GlassCard>
             {expandedCard === card.key && (
-              <div className="mt-1 max-h-[300px] overflow-y-auto rounded-xl border border-white/[0.06] bg-[#0d0d24]/90 backdrop-blur-md">
+              <div className="mt-1 rounded-xl border border-white/[0.06] bg-[#0d0d24]/90 backdrop-blur-md">
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 bg-[#0d0d24]">
                     <tr className="border-b border-white/[0.06]">
@@ -663,6 +663,27 @@ function TabInsideSales({ data, metrics }) {
     lostByVendedora[key]++
   })
 
+  // Total oportunidades geradas no periodo = open criados no mes + won no mes + lost no mes
+  const mesFiltro = data.mesFiltro || metrics.mesAtual || ''
+  const oportunidadesByVendedora = {}
+  ;(data.openDeals || []).filter(d => (d.dataCriacao || '').startsWith(mesFiltro)).forEach(d => {
+    const key = d.vendedora || 'Sem dono'
+    if (!oportunidadesByVendedora[key]) oportunidadesByVendedora[key] = 0
+    oportunidadesByVendedora[key]++
+  })
+  ;(data.wonDeals || []).forEach(d => {
+    if (d.mes !== mesFiltro) return
+    const key = d.vendedora || 'Sem dono'
+    if (!oportunidadesByVendedora[key]) oportunidadesByVendedora[key] = 0
+    oportunidadesByVendedora[key]++
+  })
+  ;(data.lostDeals || []).forEach(d => {
+    if (d.mes !== mesFiltro) return
+    const key = d.vendedora || 'Sem dono'
+    if (!oportunidadesByVendedora[key]) oportunidadesByVendedora[key] = 0
+    oportunidadesByVendedora[key]++
+  })
+
   // Atividades
   const atividades = data.atividades || []
   const totalAtividades = atividades.reduce((s, a) => s + a.ligacoes + a.emails + a.reunioes + a.propostas + a.followups + a.whatsapp, 0)
@@ -746,18 +767,34 @@ function TabInsideSales({ data, metrics }) {
                 </tr>
               </thead>
               <tbody>
-                {/* Oportunidades */}
+                {/* Total oportunidades geradas no periodo */}
                 <tr className="border-b border-white/[0.03]">
                   <td className="py-4 px-3">
-                    <p className="text-white/60 font-medium">Oportunidades</p>
-                    <p className="text-[10px] text-white/25">deals abertos no funil</p>
+                    <p className="text-white/60 font-medium">Oportunidades Geradas</p>
+                    <p className="text-[10px] text-white/25">total entradas no funil no periodo</p>
+                  </td>
+                  {chartVendedoras.map((v, i) => {
+                    const total = oportunidadesByVendedora[v.nomeCompleto] || 0
+                    return (
+                      <td key={i} className="py-4 px-3 text-center">
+                        <p className="text-2xl font-bold text-cyan-400">{total}</p>
+                        <p className="text-[10px] text-white/25">oportunidades</p>
+                      </td>
+                    )
+                  })}
+                </tr>
+                {/* Oportunidades abertas (pipeline atual) */}
+                <tr className="border-b border-white/[0.03]">
+                  <td className="py-4 px-3">
+                    <p className="text-white/60 font-medium">Em Aberto</p>
+                    <p className="text-[10px] text-white/25">deals ativos no funil agora</p>
                   </td>
                   {chartVendedoras.map((v, i) => {
                     const op = openByVendedora[v.nomeCompleto] || { count: 0, valor: 0 }
                     const tkm = op.count > 0 ? op.valor / op.count : 0
                     return (
                       <td key={i} className="py-4 px-3 text-center">
-                        <p className="text-2xl font-bold text-cyan-400">{op.count}</p>
+                        <p className="text-2xl font-bold text-violet-400">{op.count}</p>
                         <p className="text-xs text-white/40">{fmtCurrencyShort(op.valor)}</p>
                         <p className="text-[10px] text-white/20 mt-0.5">TM {fmtCurrencyShort(tkm)}</p>
                       </td>
@@ -889,30 +926,57 @@ function TabInsideSales({ data, metrics }) {
             </div>
           </div>
         </GlassCard>
-      </div>
+      </div>      </div>
 
       {/* ============================================= */}
-      {/* CAMADA 1: DISCIPLINA (Azul #1A5276)           */}
+      {/* QUADRO OPERACIONAL DE ATIVIDADES              */}
       {/* ============================================= */}
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-1.5 h-8 rounded-full" style={{ background: '#1A5276' }} />
-          <h2 className="text-lg font-bold tracking-tight" style={{ color: '#5DADE2' }}>Disciplina</h2>
-          <span className="text-[10px] uppercase tracking-widest text-white/25">processo e rotina</span>
+          <div className="w-1.5 h-8 rounded-full bg-cyan-500" />
+          <h2 className="text-lg font-bold tracking-tight text-white/80">Quadro Operacional de Atividades</h2>
         </div>
 
+        {/* Atividades: Agendadas / No Prazo / Fora do Prazo / Atrasadas */}
         {data.atividadesStatus && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <KPICard label="Agendadas" value={data.atividadesStatus.totais?.agendadas || 0} icon={Clock} color="blue" />
-              <KPICard label="Executadas" value={data.atividadesStatus.totais?.executadas || 0} icon={CheckCircle} color="emerald" subtitle={data.atividadesStatus.totais?.agendadas > 0 ? Math.round((data.atividadesStatus.totais.executadas / data.atividadesStatus.totais.agendadas) * 100) + '% taxa execucao' : ''} />
-              <KPICard label="Atrasadas" value={data.atividadesStatus.totais?.atrasadas || 0} icon={AlertTriangle} color="rose" />
+            {/* KPI Cards â 4 metricas */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <KPICard
+                label="Agendadas"
+                value={data.atividadesStatus.totais?.agendadas || 0}
+                icon={Clock}
+                color="blue"
+                subtitle="total no periodo"
+              />
+              <KPICard
+                label="Executadas no Prazo"
+                value={data.atividadesStatus.totais?.noPrazo || 0}
+                icon={CheckCircle}
+                color="emerald"
+                subtitle={data.atividadesStatus.totais?.executadas > 0
+                  ? `${Math.round(((data.atividadesStatus.totais.noPrazo || 0) / data.atividadesStatus.totais.executadas) * 100)}% das executadas`
+                  : ''}
+              />
+              <KPICard
+                label="Fora do Prazo"
+                value={data.atividadesStatus.totais?.foraDoPrazo || 0}
+                icon={AlertTriangle}
+                color="amber"
+                subtitle={data.atividadesStatus.totais?.executadas > 0
+                  ? `${Math.round(((data.atividadesStatus.totais.foraDoPrazo || 0) / data.atividadesStatus.totais.executadas) * 100)}% das executadas`
+                  : ''}
+              />
+              <KPICard
+                label="Atrasadas"
+                value={data.atividadesStatus.totais?.atrasadas || 0}
+                icon={AlertTriangle}
+                color="rose"
+                subtitle="nao executadas"
+              />
             </div>
-          </div>
-        )}
 
-      {/* Horizontal bar per vendedora */}
-            {data.atividadesStatus && (
+            {/* Horizontal bar per vendedora */}
             <GlassCard>
               <div className="p-6">
                 <SectionTitle icon={BarChart3} description="Agendadas vs Executadas vs Atrasadas por vendedora">Disciplina de Atividades</SectionTitle>
@@ -926,9 +990,9 @@ function TabInsideSales({ data, metrics }) {
                           <span className="text-[10px] text-white/30">{v.executadas}/{v.agendadas} executadas | {v.atrasadas} atrasadas</span>
                         </div>
                         <div className="flex gap-1 h-5">
-                          <div className="rounded-l" style={{ width: (v.executadas / maxVal) * 100 + '%', background: '#10b981', minWidth: v.executadas > 0 ? '4px' : '0' }} />
-                          <div style={{ width: ((v.agendadas - v.executadas) / maxVal) * 100 + '%', background: '#3b82f6', minWidth: (v.agendadas - v.executadas) > 0 ? '4px' : '0' }} />
-                          <div className="rounded-r" style={{ width: (v.atrasadas / maxVal) * 100 + '%', background: '#ef4444', minWidth: v.atrasadas > 0 ? '4px' : '0' }} />
+                          <div className="rounded-l" style={{ width: `${(v.executadas / maxVal) * 100}%`, background: '#10b981', minWidth: v.executadas > 0 ? '4px' : '0' }} title={`Executadas: ${v.executadas}`} />
+                          <div style={{ width: `${((v.agendadas - v.executadas) / maxVal) * 100}%`, background: '#3b82f6', minWidth: (v.agendadas - v.executadas) > 0 ? '4px' : '0' }} title={`Pendentes: ${v.agendadas - v.executadas}`} />
+                          <div className="rounded-r" style={{ width: `${(v.atrasadas / maxVal) * 100}%`, background: '#ef4444', minWidth: v.atrasadas > 0 ? '4px' : '0' }} title={`Atrasadas: ${v.atrasadas}`} />
                         </div>
                       </div>
                     )
@@ -941,7 +1005,8 @@ function TabInsideSales({ data, metrics }) {
                 </div>
               </div>
             </GlassCard>
-            )}
+          </div>
+        )}
 
         {/* Tempo de Resposta a Cotacao */}
         {data.tempoResposta && (
@@ -950,29 +1015,57 @@ function TabInsideSales({ data, metrics }) {
               <div className="p-6">
                 <SectionTitle icon={Zap} description="SLA: 2h para primeiro contato">Tempo de Resposta a Cotacao</SectionTitle>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+                  {/* Semaphore */}
                   <div className="flex flex-col items-center justify-center">
-                    <div className={'w-24 h-24 rounded-full flex items-center justify-center border-4 ' + (data.tempoResposta.mediaGeral <= 2 ? 'border-emerald-500 bg-emerald-500/10' : data.tempoResposta.mediaGeral <= 4 ? 'border-amber-500 bg-amber-500/10' : 'border-rose-500 bg-rose-500/10')}>
+                    <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 ${
+                      data.tempoResposta.mediaGeral <= 2 ? 'border-emerald-500 bg-emerald-500/10' :
+                      data.tempoResposta.mediaGeral <= 4 ? 'border-amber-500 bg-amber-500/10' :
+                      'border-rose-500 bg-rose-500/10'
+                    }`}>
                       <div className="text-center">
-                        <p className={'text-2xl font-bold ' + (data.tempoResposta.mediaGeral <= 2 ? 'text-emerald-400' : data.tempoResposta.mediaGeral <= 4 ? 'text-amber-400' : 'text-rose-400')}>{data.tempoResposta.mediaGeral}h</p>
+                        <p className={`text-2xl font-bold ${
+                          data.tempoResposta.mediaGeral <= 2 ? 'text-emerald-400' :
+                          data.tempoResposta.mediaGeral <= 4 ? 'text-amber-400' :
+                          'text-rose-400'
+                        }`}>{data.tempoResposta.mediaGeral}h</p>
                         <p className="text-[9px] text-white/30 uppercase">media</p>
                       </div>
                     </div>
                     <p className="text-[10px] text-white/30 mt-2">{data.tempoResposta.totalAnalisados} deals analisados</p>
                   </div>
+
+                  {/* Distribuicao */}
                   <div className="space-y-2">
                     <p className="text-[11px] uppercase tracking-wider text-white/30 font-medium mb-3">Distribuicao</p>
-                    {[{label:'Ate 2h (SLA)',value:data.tempoResposta.distribuicao?.ate2h||0,color:'#10b981'},{label:'2h a 4h',value:data.tempoResposta.distribuicao?.de2a4h||0,color:'#f59e0b'},{label:'4h a 8h',value:data.tempoResposta.distribuicao?.de4a8h||0,color:'#ef4444'},{label:'Mais de 8h',value:data.tempoResposta.distribuicao?.mais8h||0,color:'#991b1b'}].map((faixa, i) => {
-                      const total = (data.tempoResposta.distribuicao?.ate2h||0)+(data.tempoResposta.distribuicao?.de2a4h||0)+(data.tempoResposta.distribuicao?.de4a8h||0)+(data.tempoResposta.distribuicao?.mais8h||0)
+                    {[
+                      { label: 'Ate 2h (SLA)', value: data.tempoResposta.distribuicao?.ate2h || 0, color: '#10b981' },
+                      { label: '2h a 4h', value: data.tempoResposta.distribuicao?.de2a4h || 0, color: '#f59e0b' },
+                      { label: '4h a 8h', value: data.tempoResposta.distribuicao?.de4a8h || 0, color: '#ef4444' },
+                      { label: 'Mais de 8h', value: data.tempoResposta.distribuicao?.mais8h || 0, color: '#991b1b' }
+                    ].map((faixa, i) => {
+                      const total = (data.tempoResposta.distribuicao?.ate2h || 0) + (data.tempoResposta.distribuicao?.de2a4h || 0) + (data.tempoResposta.distribuicao?.de4a8h || 0) + (data.tempoResposta.distribuicao?.mais8h || 0)
                       const pct = total > 0 ? (faixa.value / total) * 100 : 0
-                      return (<div key={i} className="flex items-center gap-2"><span className="text-xs text-white/50 w-24">{faixa.label}</span><div className="flex-1 h-3 bg-white/5 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{width:pct+'%',background:faixa.color}} /></div><span className="text-xs text-white/40 w-8 text-right">{faixa.value}</span></div>)
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-xs text-white/50 w-24">{faixa.label}</span>
+                          <div className="flex-1 h-3 bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: faixa.color }} />
+                          </div>
+                          <span className="text-xs text-white/40 w-8 text-right">{faixa.value}</span>
+                        </div>
+                      )
                     })}
                   </div>
+
+                  {/* Por vendedora */}
                   <div className="space-y-2">
                     <p className="text-[11px] uppercase tracking-wider text-white/30 font-medium mb-3">Por vendedora</p>
                     {Object.entries(data.tempoResposta.porVendedora || {}).map(([nome, media], i) => (
                       <div key={i} className="flex items-center justify-between py-1.5 border-b border-white/[0.03]">
                         <span className="text-sm text-white/70">{nome}</span>
-                        <span className={'text-sm font-semibold ' + (media <= 2 ? 'text-emerald-400' : media <= 4 ? 'text-amber-400' : 'text-rose-400')}>{media}h</span>
+                        <span className={`text-sm font-semibold ${
+                          media <= 2 ? 'text-emerald-400' : media <= 4 ? 'text-amber-400' : 'text-rose-400'
+                        }`}>{media}h</span>
                       </div>
                     ))}
                   </div>
@@ -982,12 +1075,12 @@ function TabInsideSales({ data, metrics }) {
           </div>
         )}
 
-        {/* Deals sem Proxima Atividade */}
+        {/* Deals sem Proxima Atividade (bonus) */}
         {data.dealsOrfaos && data.dealsOrfaos.total > 0 && (
           <div className="mt-4">
             <GlassCard>
               <div className="p-6">
-                <SectionTitle icon={AlertTriangle} description={data.dealsOrfaos.total + ' deals sem follow-up agendado'}>Deals Orfaos (sem proxima atividade)</SectionTitle>
+                <SectionTitle icon={AlertTriangle} description={`${data.dealsOrfaos.total} deals sem follow-up agendado`}>Deals Orfaos (sem proxima atividade)</SectionTitle>
                 <div className="overflow-x-auto mt-4">
                   <table className="w-full text-sm">
                     <thead>
@@ -1001,10 +1094,14 @@ function TabInsideSales({ data, metrics }) {
                     <tbody>
                       {(data.dealsOrfaos.deals || []).slice(0, 10).map((d, i) => (
                         <tr key={d.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
-                          <td className="py-2 px-3 text-white/80">{d.titulo || d.empresa || ('Deal #' + d.id)}</td>
+                          <td className="py-2 px-3 text-white/80">{d.titulo || d.empresa || `Deal #${d.id}`}</td>
                           <td className="py-2 px-3 text-white/50">{d.vendedora}</td>
                           <td className="py-2 px-3 text-center">
-                            <span className={'inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ' + (d.diasParado >= 7 ? 'bg-rose-500/20 text-rose-400' : d.diasParado >= 3 ? 'bg-amber-500/20 text-amber-400' : 'bg-white/10 text-white/60')}>{d.diasParado}d</span>
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              d.diasParado >= 7 ? 'bg-rose-500/20 text-rose-400' :
+                              d.diasParado >= 3 ? 'bg-amber-500/20 text-amber-400' :
+                              'bg-white/10 text-white/60'
+                            }`}>{d.diasParado}d</span>
                           </td>
                           <td className="py-2 px-3 text-right text-white/40">{fmtCurrencyShort(d.valor)}</td>
                         </tr>
@@ -1016,30 +1113,40 @@ function TabInsideSales({ data, metrics }) {
             </GlassCard>
           </div>
         )}
-      </div>
 
-      {/* ============================================= */}
-      {/* CAMADA 2: ESFORCO (Laranja #E67E22)           */}
-      {/* ============================================= */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-1.5 h-8 rounded-full" style={{ background: '#E67E22' }} />
-          <h2 className="text-lg font-bold tracking-tight" style={{ color: '#F5B041' }}>Esforco</h2>
-          <span className="text-[10px] uppercase tracking-widest text-white/25">volume e intensidade</span>
-        </div>
+        {/* Tipo de Tarefa por vendedora (Atividades Comparativas) */}
+        <GlassCard>
+          <div className="p-6">
+            <SectionTitle icon={BarChart3} description="Volume por tipo de atividade â perfil de cada vendedora">Tipo de Tarefa por Vendedora</SectionTitle>
+            <div className="h-[280px] mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={atividadesChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="tipo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  {chartVendedoras.map((v, i) => (
+                    <Bar key={i} dataKey={v.nome} name={v.nomeCompleto} fill={v.fill} radius={[4, 4, 0, 0]} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </GlassCard>
 
-        {/* Ligacoes Realizadas 30 dias */}
+        {/* Ligacoes Realizadas â volume diario 30 dias */}
         {data.atividadesDiarias && data.atividadesDiarias.length > 0 && (
           <GlassCard>
             <div className="p-6">
               <SectionTitle icon={Phone} description="Volume diario de ligacoes (ultimos 30 dias)">Ligacoes Realizadas</SectionTitle>
               <div className="h-[280px] mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.atividadesDiarias.map(d => {
-                    const point = { dia: d.dia.substring(5) }
-                    Object.entries(d).forEach(([k, val]) => { if (k !== 'dia' && val) point[k.split(' ')[0]] = val.ligacoes || 0 })
-                    return point
-                  })}>
+                  <LineChart data={data.atividadesDiarias.map(d => ({
+                    dia: d.dia.substring(5),
+                    ...Object.fromEntries(
+                      Object.entries(d).filter(([k]) => k !== 'dia').map(([nome, val]) => [nome.split(' ')[0], val?.ligacoes || 0])
+                    )
+                  }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                     <XAxis dataKey="dia" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                     <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -1061,6 +1168,7 @@ function TabInsideSales({ data, metrics }) {
               <div className="p-6">
                 <SectionTitle icon={Activity} description="Media de atividades por deal: ganhos vs perdidos">Frequencia de Follow-up</SectionTitle>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+                  {/* Comparativo Won vs Lost */}
                   <div className="flex items-center justify-center gap-8">
                     <div className="text-center">
                       <p className="text-3xl font-bold text-emerald-400">{data.followupFrequency.mediaWon}</p>
@@ -1074,9 +1182,17 @@ function TabInsideSales({ data, metrics }) {
                       <p className="text-xs text-white/20">atividades/deal</p>
                     </div>
                   </div>
+
+                  {/* Distribuicao por faixa */}
                   <div className="space-y-2">
                     <p className="text-[11px] uppercase tracking-wider text-white/30 font-medium mb-2">Distribuicao por faixa</p>
-                    {[{label:'0 atividades',won:data.followupFrequency.distribuicaoWon?.zero,lost:data.followupFrequency.distribuicaoLost?.zero},{label:'1-2 atividades',won:data.followupFrequency.distribuicaoWon?.um_dois,lost:data.followupFrequency.distribuicaoLost?.um_dois},{label:'3-5 atividades',won:data.followupFrequency.distribuicaoWon?.tres_cinco,lost:data.followupFrequency.distribuicaoLost?.tres_cinco},{label:'6-10 atividades',won:data.followupFrequency.distribuicaoWon?.seis_dez,lost:data.followupFrequency.distribuicaoLost?.seis_dez},{label:'10+ atividades',won:data.followupFrequency.distribuicaoWon?.mais_dez,lost:data.followupFrequency.distribuicaoLost?.mais_dez}].map((f, i) => (
+                    {[
+                      { label: '0 atividades', won: data.followupFrequency.distribuicaoWon?.zero, lost: data.followupFrequency.distribuicaoLost?.zero },
+                      { label: '1-2 atividades', won: data.followupFrequency.distribuicaoWon?.um_dois, lost: data.followupFrequency.distribuicaoLost?.um_dois },
+                      { label: '3-5 atividades', won: data.followupFrequency.distribuicaoWon?.tres_cinco, lost: data.followupFrequency.distribuicaoLost?.tres_cinco },
+                      { label: '6-10 atividades', won: data.followupFrequency.distribuicaoWon?.seis_dez, lost: data.followupFrequency.distribuicaoLost?.seis_dez },
+                      { label: '10+ atividades', won: data.followupFrequency.distribuicaoWon?.mais_dez, lost: data.followupFrequency.distribuicaoLost?.mais_dez }
+                    ].map((f, i) => (
                       <div key={i} className="flex items-center gap-2 text-xs">
                         <span className="text-white/40 w-24">{f.label}</span>
                         <span className="text-emerald-400 w-8 text-right">{f.won || 0}</span>
@@ -1094,17 +1210,6 @@ function TabInsideSales({ data, metrics }) {
             </GlassCard>
           </div>
         )}
-      </div>
-
-      {/* ============================================= */}
-      {/* CAMADA 3: RESULTADO (Verde #27AE60)            */}
-      {/* ============================================= */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-1.5 h-8 rounded-full" style={{ background: '#27AE60' }} />
-          <h2 className="text-lg font-bold tracking-tight" style={{ color: '#58D68D' }}>Resultado</h2>
-          <span className="text-[10px] uppercase tracking-widest text-white/25">output e impacto</span>
-        </div>
 
         {/* Sales Velocity */}
         {data.salesVelocity && (
@@ -1112,12 +1217,15 @@ function TabInsideSales({ data, metrics }) {
             <div className="p-6">
               <SectionTitle icon={Zap} description="Velocity = (Deals x Valor Medio x Conversao) / Ciclo Medio">Sales Velocity</SectionTitle>
               <div className="mt-4">
+                {/* Velocity Geral */}
                 <div className="flex items-center justify-center mb-6">
                   <div className="text-center">
                     <p className="text-4xl font-bold text-emerald-400">{fmtCurrencyShort(data.salesVelocity.geral?.velocity || 0)}</p>
                     <p className="text-[10px] uppercase tracking-wider text-white/30 mt-1">velocity/dia</p>
                   </div>
                 </div>
+
+                {/* Formula decomposition */}
                 <div className="grid grid-cols-4 gap-4 mb-6">
                   <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
                     <p className="text-xl font-bold text-cyan-400">{data.salesVelocity.geral?.numDeals || 0}</p>
@@ -1136,6 +1244,8 @@ function TabInsideSales({ data, metrics }) {
                     <p className="text-[10px] text-white/30 mt-1">Ciclo Medio</p>
                   </div>
                 </div>
+
+                {/* Por vendedora */}
                 <div className="space-y-3">
                   <p className="text-[11px] uppercase tracking-wider text-white/30 font-medium">Por vendedora</p>
                   <div className="overflow-x-auto">
@@ -1175,7 +1285,6 @@ function TabInsideSales({ data, metrics }) {
   )
 }
 
-
 // =============================================
 // TAB: CLOSER FTL
 // =============================================
@@ -1186,6 +1295,7 @@ function TabCloserFTL({ data }) {
 
   return (
     <div className="space-y-6">
+      {/* KPIs Closer FTL */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <KPICard label="Total Cargas" value={closer.totalCargas} icon={Truck} color="cyan" />
         <KPICard label="Executadas" value={closer.executadas} icon={Award} color="emerald" />
@@ -1194,11 +1304,13 @@ function TabCloserFTL({ data }) {
         <KPICard label="% Conversao" value={fmtPct(closer.conversionPct, 1)} icon={Target} color={closer.conversionPct >= 80 ? 'emerald' : closer.conversionPct >= 60 ? 'amber' : 'rose'} />
       </div>
 
+      {/* Tabela de cargas perdidas */}
       <GlassCard>
         <div className="p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <SectionTitle icon={AlertTriangle} description={`${allLost.length} cargas perdidas | ${fmtCurrency(totalPerda)} em frete`}>Cargas Perdidas (No Show + Canceladas)</SectionTitle>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -1243,6 +1355,7 @@ function TabCloserFTL({ data }) {
   )
 }
 
+// =============================================
 // TAB: CLIENTES
 // =============================================
 function TabClientes({ data, metrics, fetchWithMes }) {
@@ -1282,10 +1395,8 @@ function TabClientes({ data, metrics, fetchWithMes }) {
       bVal = b.wonDealsCount > 0 ? b.vendidoMes / b.wonDealsCount : 0
     }
     if (sortField === 'taxaConversao') {
-      const aTotal = (a.wonDealsCount || 0) + (a.closedDealsCount || 0)
-      const bTotal = (b.wonDealsCount || 0) + (b.closedDealsCount || 0)
-      aVal = aTotal > 0 ? a.wonDealsCount / aTotal : 0
-      bVal = bTotal > 0 ? b.wonDealsCount / bTotal : 0
+      aVal = a.closedDealsCount > 0 ? a.wonDealsCount / a.closedDealsCount : 0
+      bVal = b.closedDealsCount > 0 ? b.wonDealsCount / b.closedDealsCount : 0
     }
     if (typeof aVal === 'string') {
       return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
@@ -1360,9 +1471,9 @@ function TabClientes({ data, metrics, fetchWithMes }) {
                   <SortHeader field="responsavel">Proprietario</SortHeader>
                   <SortHeader field="openDealsCount" align="center">Oportunidades</SortHeader>
                   <SortHeader field="wonDealsCount" align="right">Won Deals</SortHeader>
-                  <SortHeader field="vendidoMes" align="right">Vendido</SortHeader>
+                  <SortHeader field="vendidoMes" align="right">Vendido Mes</SortHeader>
                   <SortHeader field="ticketMedio" align="right">Ticket Medio</SortHeader>
-                  <SortHeader field="taxaConversao" align="center">Conversao</SortHeader>
+                  <SortHeader field="taxaConversao" align="right">Conversao</SortHeader>
                 </tr>
               </thead>
               <tbody>
@@ -1377,11 +1488,15 @@ function TabClientes({ data, metrics, fetchWithMes }) {
                     </td>
                     <td className="py-3 px-3 text-white/50 text-xs">{c.perfil}</td>
                     <td className="py-3 px-3 text-white/50">{(c.responsavel || '').split(' ').slice(0,2).join(' ')}</td>
-                    <td className="py-3 px-3 text-center font-medium text-cyan-400">{c.openDealsCount || 0}</td>
+                    <td className="py-3 px-3 text-center text-cyan-400 font-medium">{c.openDealsCount}</td>
                     <td className="py-3 px-3 text-right font-medium text-emerald-400">{c.wonDealsCount}</td>
                     <td className="py-3 px-3 text-right font-medium text-white/80">{c.vendidoMes > 0 ? fmtCurrency(c.vendidoMes) : '-'}</td>
                     <td className="py-3 px-3 text-right text-white/60">{c.wonDealsCount > 0 ? fmtCurrencyShort(c.vendidoMes / c.wonDealsCount) : '-'}</td>
-                    <td className="py-3 px-3 text-center">{(() => { const total = (c.wonDealsCount || 0) + (c.closedDealsCount || 0); const rate = total > 0 ? (c.wonDealsCount / total) * 100 : 0; const color = rate >= 25 ? 'text-emerald-400' : rate >= 15 ? 'text-amber-400' : 'text-rose-400'; return <span className={color}>{rate > 0 ? fmtPct(rate, 0) : '-'}</span> })()}</td>
+                    <td className="py-3 px-3 text-right">
+                      <span className={`font-medium ${c.closedDealsCount > 0 ? (c.wonDealsCount / c.closedDealsCount * 100 >= 20 ? 'text-emerald-400' : c.wonDealsCount / c.closedDealsCount * 100 >= 10 ? 'text-amber-400' : 'text-rose-400') : 'text-white/30'}`}>
+                        {c.closedDealsCount > 0 ? fmtPct(c.wonDealsCount / c.closedDealsCount * 100, 1) : '-'}
+                      </span>
+                    </td>
                   </tr>
                 ))}
                 {clientesFiltrados.length === 0 && (
