@@ -106,7 +106,7 @@ function computeMetrics(data) {
     : 0
 
   // Funil por estagio (ordenado)
-  const STAGE_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'BID', 'Proposta Aprovada']
+  const STAGE_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'Proposta Aprovada']
   const funil = STAGE_ORDER.map(nome => {
     const stage = data.funil?.find(f => f.nome === nome) || { nome, count: 0, valor: 0 }
     return stage
