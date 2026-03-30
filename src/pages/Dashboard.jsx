@@ -19,7 +19,8 @@ import { fmtCurrency, fmtCurrencyShort, fmtPct, fmtMes, fmtMesFull } from '../li
 const TABS = [
   { id: 'visao', label: 'Visao Geral', icon: BarChart3 },
   { id: 'funil', label: 'Funil', icon: Funnel },
-  { id: 'performance', label: 'Performance', icon: Users },
+  { id: 'insideSales', label: 'Inside Sales', icon: Users },
+  { id: 'closerFTL', label: 'Closer FTL', icon: Truck },
   { id: 'clientes', label: 'Clientes', icon: Users },
   { id: 'projecao', label: 'Projecao', icon: TrendingUp },
 ]
@@ -27,7 +28,6 @@ const TABS = [
 const STAGE_COLORS = {
   'Pedido de Cotacao': '#f59e0b',
   'Em Negociacao': '#06b6d4',
-  'BID': '#8b5cf6',
   'Proposta Aprovada': '#10b981',
 }
 
@@ -80,7 +80,8 @@ export default function Dashboard() {
   const ActiveTabComponent = {
     visao: TabVisaoGeral,
     funil: TabFunil,
-    performance: TabPerformance,
+    insideSales: TabInsideSales,
+    closerFTL: TabCloserFTL,
     clientes: TabClientes,
     projecao: TabProjecao,
   }[activeTab]
@@ -612,9 +613,9 @@ function TabFunil({ data, metrics }) {
 }
 
 // =============================================
-// TAB: PERFORMANCE
+// TAB: INSIDE SALES
 // =============================================
-function TabPerformance({ data, metrics }) {
+function TabInsideSales({ data, metrics }) {
   const VENDEDORA_COLORS = ['#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444']
 
   const chartVendedoras = metrics.vendedoras.map((v, i) => ({
@@ -782,88 +783,77 @@ function TabPerformance({ data, metrics }) {
         </GlassCard>
       </div>
 
-      {/* ========== CLOSER FTL â Prospeccao de Motoristas ========== */}
-      {(() => {
-        const closer = data.closerFTL || { totalCargas: 0, executadas: 0, noShowCount: 0, canceladaCount: 0, lostCount: 0, conversionPct: 0, noShowTasks: [], canceladaTasks: [], lostTasks: [] }
-        const allLost = [...(closer.noShowTasks || []), ...(closer.canceladaTasks || [])].sort((a, b) => (b.freteEmpresa || 0) - (a.freteEmpresa || 0))
-        const totalPerda = allLost.reduce((s, t) => s + (t.freteEmpresa || 0), 0)
-
-        return (
-          <div className="space-y-6">
-            {/* Separador visual */}
-            <div className="flex items-center gap-4 pt-4">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
-              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20">
-                <Truck size={14} className="text-orange-400" />
-                <span className="text-xs font-semibold text-orange-400 uppercase tracking-wider">Closer FTL</span>
-              </div>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
-            </div>
-
-            {/* KPIs Closer FTL */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <KPICard label="Total Cargas" value={closer.totalCargas} icon={Truck} color="cyan" />
-              <KPICard label="Executadas" value={closer.executadas} icon={Award} color="emerald" />
-              <KPICard label="No Show" value={closer.noShowCount} icon={Ban} color="rose" />
-              <KPICard label="Canceladas" value={closer.canceladaCount} icon={XCircle} color="amber" />
-              <KPICard label="% Conversao" value={fmtPct(closer.conversionPct, 1)} icon={Target} color={closer.conversionPct >= 80 ? 'emerald' : closer.conversionPct >= 60 ? 'amber' : 'rose'} />
-            </div>
-
-            {/* Tabela de cargas perdidas */}
-            <GlassCard>
-              <div className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                  <SectionTitle icon={AlertTriangle} description={`${allLost.length} cargas perdidas | ${fmtCurrency(totalPerda)} em frete`}>Cargas Perdidas (No Show + Canceladas)</SectionTitle>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-white/[0.06]">
-                        <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">ID</th>
-                        <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Carga</th>
-                        <th className="text-center py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Status</th>
-                        <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Frete</th>
-                        <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Motivo</th>
-                        <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Coleta</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allLost.map((t, i) => (
-                        <tr key={t.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3 px-3 text-white/40 text-xs font-mono">{t.customId || t.id}</td>
-                          <td className="py-3 px-3 text-white/80 font-medium">{t.nome}</td>
-                          <td className="py-3 px-3 text-center">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              t.status === 'no show'
-                                ? 'bg-rose-500/20 text-rose-400'
-                                : 'bg-amber-500/20 text-amber-400'
-                            }`}>
-                              {t.status === 'no show' ? <Ban size={10} /> : <XCircle size={10} />}
-                              {t.status === 'no show' ? 'NO SHOW' : 'CANCELADA'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-right font-medium text-rose-400">{t.freteEmpresa > 0 ? fmtCurrency(t.freteEmpresa) : '-'}</td>
-                          <td className="py-3 px-3 text-white/50 text-xs">{t.motivoNoShow || '-'}</td>
-                          <td className="py-3 px-3 text-right text-white/30">{t.dataColeta}</td>
-                        </tr>
-                      ))}
-                      {allLost.length === 0 && (
-                        <tr><td colSpan={6} className="py-8 text-center text-white/20 text-sm">Nenhuma carga perdida no periodo</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </GlassCard>
-          </div>
-        )
-      })()}
     </div>
   )
 }
 
 // =============================================
+// TAB: CLOSER FTL
+// =============================================
+function TabCloserFTL({ data }) {
+  const closer = data.closerFTL || { totalCargas: 0, executadas: 0, noShowCount: 0, canceladaCount: 0, lostCount: 0, conversionPct: 0, noShowTasks: [], canceladaTasks: [], lostTasks: [] }
+  const allLost = [...(closer.noShowTasks || []), ...(closer.canceladaTasks || [])].sort((a, b) => (b.freteEmpresa || 0) - (a.freteEmpresa || 0))
+  const totalPerda = allLost.reduce((s, t) => s + (t.freteEmpresa || 0), 0)
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <KPICard label="Total Cargas" value={closer.totalCargas} icon={Truck} color="cyan" />
+        <KPICard label="Executadas" value={closer.executadas} icon={Award} color="emerald" />
+        <KPICard label="No Show" value={closer.noShowCount} icon={Ban} color="rose" />
+        <KPICard label="Canceladas" value={closer.canceladaCount} icon={XCircle} color="amber" />
+        <KPICard label="% Conversao" value={fmtPct(closer.conversionPct, 1)} icon={Target} color={closer.conversionPct >= 80 ? 'emerald' : closer.conversionPct >= 60 ? 'amber' : 'rose'} />
+      </div>
+
+      <GlassCard>
+        <div className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <SectionTitle icon={AlertTriangle} description={`${allLost.length} cargas perdidas | ${fmtCurrency(totalPerda)} em frete`}>Cargas Perdidas (No Show + Canceladas)</SectionTitle>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">ID</th>
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Carga</th>
+                  <th className="text-center py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Status</th>
+                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Frete</th>
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Motivo</th>
+                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Coleta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allLost.map((t, i) => (
+                  <tr key={t.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-3 text-white/40 text-xs font-mono">{t.customId || t.id}</td>
+                    <td className="py-3 px-3 text-white/80 font-medium">{t.nome}</td>
+                    <td className="py-3 px-3 text-center">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        t.status === 'no show'
+                          ? 'bg-rose-500/20 text-rose-400'
+                          : 'bg-amber-500/20 text-amber-400'
+                      }`}>
+                        {t.status === 'no show' ? <Ban size={10} /> : <XCircle size={10} />}
+                        {t.status === 'no show' ? 'NO SHOW' : 'CANCELADA'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-right font-medium text-rose-400">{t.freteEmpresa > 0 ? fmtCurrency(t.freteEmpresa) : '-'}</td>
+                    <td className="py-3 px-3 text-white/50 text-xs">{t.motivoNoShow || '-'}</td>
+                    <td className="py-3 px-3 text-right text-white/30">{t.dataColeta}</td>
+                  </tr>
+                ))}
+                {allLost.length === 0 && (
+                  <tr><td colSpan={6} className="py-8 text-center text-white/20 text-sm">Nenhuma carga perdida no periodo</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </GlassCard>
+    </div>
+  )
+}
+
 // TAB: CLIENTES
 // =============================================
 function TabClientes({ data, metrics, fetchWithMes }) {
