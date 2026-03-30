@@ -180,8 +180,11 @@ export default function Dashboard() {
 // TAB: VISAO GERAL
 // =============================================
 function TabVisaoGeral({ data, metrics }) {
+  const [expandedCard, setExpandedCard] = useState(null)
+
   const chartData = metrics.historico.map(h => ({
     mes: fmtMes(h.mes),
+    oportunidades: (h.won_count || 0) + (h.lost_count || 0),
     vendido: h.won_value,
     perdido: h.lost_value,
     conversao: h.conversion_rate
@@ -245,46 +248,59 @@ function TabVisaoGeral({ data, metrics }) {
         </div>
       </GlassCard>
 
-      {/* FAIXA 2: Deals Ganhos / Perdidos / Abertos */}
+      {/* FAIXA 2: Deals Ganhos / Perdidos / Abertos — clicaveis */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <GlassCard hover>
-          <div className="p-5 border-l-2 border-emerald-500/20">
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Deals Ganhos</p>
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 flex items-center justify-center">
-                <Award size={16} className="text-emerald-400" />
+        {[
+          { key: 'won', label: 'Deals Ganhos', count: metrics.totalWonCount, valor: metrics.totalWonValor, color: 'emerald', Icon: Award, deals: data.wonDeals || [] },
+          { key: 'lost', label: 'Deals Perdidos', count: metrics.totalLostCount, valor: metrics.totalLostValor, color: 'rose', Icon: XCircle, deals: data.lostDeals || [] },
+          { key: 'open', label: 'Deals Abertos', count: metrics.totalFunilCount, valor: metrics.totalFunilValor, color: 'cyan', Icon: Layers, deals: data.openDeals || [] },
+        ].map(card => (
+          <div key={card.key}>
+            <GlassCard hover>
+              <div
+                className={`p-5 border-l-2 border-${card.color}-500/20 cursor-pointer select-none`}
+                onClick={() => setExpandedCard(expandedCard === card.key ? null : card.key)}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">{card.label}</p>
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-${card.color}-500/10 to-${card.color}-500/5 flex items-center justify-center`}>
+                    <card.Icon size={16} className={`text-${card.color}-400`} />
+                  </div>
+                </div>
+                <p className={`text-2xl font-bold text-${card.color}-400 mb-1`}>{card.count}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-white/50">{fmtCurrency(card.valor)}</p>
+                  <span className="text-[10px] text-white/25">{expandedCard === card.key ? 'fechar' : 'ver deals'} ▾</span>
+                </div>
               </div>
-            </div>
-            <p className="text-2xl font-bold text-emerald-400 mb-1">{metrics.totalWonCount}</p>
-            <p className="text-sm text-white/50">{fmtCurrency(metrics.totalWonValor)}</p>
-          </div>
-        </GlassCard>
-
-        <GlassCard hover>
-          <div className="p-5 border-l-2 border-rose-500/20">
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Deals Perdidos</p>
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500/10 to-rose-500/5 flex items-center justify-center">
-                <XCircle size={16} className="text-rose-400" />
+            </GlassCard>
+            {expandedCard === card.key && (
+              <div className="mt-1 max-h-[300px] overflow-y-auto rounded-xl border border-white/[0.06] bg-[#0d0d24]/90 backdrop-blur-md">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-[#0d0d24]">
+                    <tr className="border-b border-white/[0.06]">
+                      <th className="text-left py-2 px-3 text-[10px] uppercase text-white/30">Empresa</th>
+                      <th className="text-right py-2 px-3 text-[10px] uppercase text-white/30">Valor</th>
+                      <th className="text-left py-2 px-3 text-[10px] uppercase text-white/30">Vendedora</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {card.deals.slice(0, 30).map((d, i) => (
+                      <tr key={d.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                        <td className="py-1.5 px-3 text-white/70">{d.empresa || d.titulo}</td>
+                        <td className={`py-1.5 px-3 text-right font-medium text-${card.color}-400`}>{fmtCurrency(d.valor)}</td>
+                        <td className="py-1.5 px-3 text-white/40">{(d.vendedora || '').split(' ')[0]}</td>
+                      </tr>
+                    ))}
+                    {card.deals.length > 30 && (
+                      <tr><td colSpan={3} className="py-2 text-center text-white/20 text-[10px]">+{card.deals.length - 30} deals</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </div>
-            <p className="text-2xl font-bold text-rose-400 mb-1">{metrics.totalLostCount}</p>
-            <p className="text-sm text-white/50">{fmtCurrency(metrics.totalLostValor)}</p>
+            )}
           </div>
-        </GlassCard>
-
-        <GlassCard hover>
-          <div className="p-5 border-l-2 border-cyan-500/20">
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Deals Abertos</p>
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 flex items-center justify-center">
-                <Layers size={16} className="text-cyan-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold text-cyan-400 mb-1">{metrics.totalFunilCount}</p>
-            <p className="text-sm text-white/50">{fmtCurrency(metrics.totalFunilValor)}</p>
-          </div>
-        </GlassCard>
+        ))}
       </div>
 
       {/* FAIXA: Faturado vs Vendido */}
@@ -404,10 +420,13 @@ function TabVisaoGeral({ data, metrics }) {
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
-                  <Tooltip content={<CustomTooltip formatter={(v, name) => name === 'conversao' ? fmtPct(v) : fmtCurrency(v)} />} />
-                  <Bar dataKey="vendido" name="Vendido" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="perdido" name="Perdido" fill="#ef4444" radius={[4, 4, 0, 0]} opacity={0.5} />
+                  <YAxis yAxisId="valor" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
+                  <YAxis yAxisId="count" orientation="right" tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip formatter={(v, name) => name === 'Oportunidades' ? `${v} deals` : fmtCurrency(v)} />} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }} />
+                  <Bar yAxisId="count" dataKey="oportunidades" name="Oportunidades" fill="#06b6d4" radius={[4, 4, 0, 0]} opacity={0.35} />
+                  <Bar yAxisId="valor" dataKey="vendido" name="Vendido" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="valor" dataKey="perdido" name="Perdido" fill="#ef4444" radius={[4, 4, 0, 0]} opacity={0.5} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -674,92 +693,162 @@ function TabInsideSales({ data, metrics }) {
   }))
   const totalLost = motivosData.reduce((s, m) => s + m.count, 0)
 
+  // Open deals por vendedora
+  const openByVendedora = {}
+  ;(data.openDeals || []).forEach(d => {
+    const key = d.vendedora || 'Sem dono'
+    if (!openByVendedora[key]) openByVendedora[key] = { count: 0, valor: 0 }
+    openByVendedora[key].count++
+    openByVendedora[key].valor += d.valor || 0
+  })
+
+  // Lost detalhado por vendedora (com valor)
+  const lostDetailByVendedora = {}
+  ;(data.lostDeals || []).forEach(d => {
+    const key = d.vendedora || 'Sem dono'
+    if (!lostDetailByVendedora[key]) lostDetailByVendedora[key] = { count: 0, valor: 0 }
+    lostDetailByVendedora[key].count++
+    lostDetailByVendedora[key].valor += d.valor || 0
+  })
+
+  // Motivos de perda por vendedora
+  const motivosByVendedora = {}
+  ;(data.lostDeals || []).forEach(d => {
+    const key = d.vendedora || 'Sem dono'
+    const motivo = d.motivoPerda || 'Nao informado'
+    if (!motivosByVendedora[key]) motivosByVendedora[key] = {}
+    motivosByVendedora[key][motivo] = (motivosByVendedora[key][motivo] || 0) + 1
+  })
+
+  const metaPerVendedora = metrics.metaValor / Math.max(chartVendedoras.length, 1)
+
   return (
     <div className="space-y-8">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard label="Total Vendido" value={fmtCurrencyShort(metrics.totalWonValor)} icon={DollarSign} color="emerald" />
-        <KPICard label="Ticket Medio" value={fmtCurrencyShort(metrics.ticketMedio)} icon={Zap} color="violet" />
-        <KPICard label="Win Rate" value={fmtPct(metrics.taxaConversao)} trend={metrics.trendConversao} icon={Target} color="cyan" />
-        <KPICard label="Total Atividades" value={totalAtividades} subtitle="no mes" icon={BarChart3} color="amber" />
-      </div>
-
-      {/* Cards vendedoras */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {chartVendedoras.map((v, i) => {
-          const lost = lostByVendedora[v.nomeCompleto] || 0
-          const totalDecidido = v.count + lost
-          const conv = totalDecidido > 0 ? (v.count / totalDecidido) * 100 : 0
-          const atv = atividades.find(a => a.vendedora === v.nomeCompleto) || {}
-
-          return (
-            <GlassCard key={i}>
-              <div className="p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold" style={{ background: `${v.fill}20`, color: v.fill }}>
-                    {v.nomeCompleto.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-white/90">{v.nomeCompleto}</p>
-                    <p className="text-[11px] text-white/30">{v.count} deals ganhos | {lost} perdidos</p>
-                  </div>
-                  <p className="text-xl font-bold" style={{ color: v.fill }}>{fmtCurrencyShort(v.valor)}</p>
-                </div>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div>
-                    <p className="text-[10px] uppercase text-white/30">Ticket Medio</p>
-                    <p className="text-sm font-medium text-white/70">{fmtCurrencyShort(v.ticketMedio)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase text-white/30">Conversao</p>
-                    <p className="text-sm font-medium text-white/70">{fmtPct(conv)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase text-white/30">Vs Meta</p>
-                    <ProgressBar value={v.valor} max={metrics.metaValor / Math.max(metrics.vendedoras.length, 1)} color={v.fill === '#06b6d4' ? 'cyan' : 'violet'} size="sm" />
-                  </div>
-                </div>
-                {/* Atividades inline */}
-                <div className="border-t border-white/[0.06] pt-3">
-                  <p className="text-[10px] uppercase text-white/25 mb-2">Atividades do Mes</p>
-                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                    {atividadeLabels.map(al => (
-                      <div key={al.key} className="text-center">
-                        <p className="text-lg font-bold text-white/80">{atv[al.key] || 0}</p>
-                        <p className="text-[9px] text-white/30">{al.label}</p>
+      {/* Grade comparativa — vendedores lado a lado */}
+      <GlassCard>
+        <div className="p-6">
+          <SectionTitle icon={Users}>Performance por Vendedor</SectionTitle>
+          <div className="overflow-x-auto mt-4">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium w-40">Indicador</th>
+                  {chartVendedoras.map((v, i) => (
+                    <th key={i} className="text-center py-3 px-3 min-w-[160px]">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: `${v.fill}20`, color: v.fill }}>
+                          {v.nomeCompleto.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <span className="text-white/80 font-semibold text-xs">{v.nome}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </GlassCard>
-          )
-        })}
-      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {/* Oportunidades */}
+                <tr className="border-b border-white/[0.03]">
+                  <td className="py-4 px-3">
+                    <p className="text-white/60 font-medium">Oportunidades</p>
+                    <p className="text-[10px] text-white/25">deals abertos no funil</p>
+                  </td>
+                  {chartVendedoras.map((v, i) => {
+                    const op = openByVendedora[v.nomeCompleto] || { count: 0, valor: 0 }
+                    const tkm = op.count > 0 ? op.valor / op.count : 0
+                    return (
+                      <td key={i} className="py-4 px-3 text-center">
+                        <p className="text-2xl font-bold text-cyan-400">{op.count}</p>
+                        <p className="text-xs text-white/40">{fmtCurrencyShort(op.valor)}</p>
+                        <p className="text-[10px] text-white/20 mt-0.5">TM {fmtCurrencyShort(tkm)}</p>
+                      </td>
+                    )
+                  })}
+                </tr>
+                {/* Vendido x Meta */}
+                <tr className="border-b border-white/[0.03]">
+                  <td className="py-4 px-3">
+                    <p className="text-white/60 font-medium">Vendido x Meta</p>
+                    <p className="text-[10px] text-white/25">meta: {fmtCurrencyShort(metaPerVendedora)}</p>
+                  </td>
+                  {chartVendedoras.map((v, i) => {
+                    const pctMeta = metaPerVendedora > 0 ? (v.valor / metaPerVendedora) * 100 : 0
+                    const metaColor = pctMeta >= 100 ? 'text-emerald-400' : pctMeta >= 80 ? 'text-amber-400' : 'text-rose-400'
+                    return (
+                      <td key={i} className="py-4 px-3 text-center">
+                        <p className={`text-2xl font-bold ${metaColor}`}>{fmtCurrencyShort(v.valor)}</p>
+                        <ProgressBar value={v.valor} max={metaPerVendedora} color={pctMeta >= 100 ? 'emerald' : pctMeta >= 80 ? 'amber' : 'rose'} size="sm" />
+                        <p className="text-[10px] text-white/25 mt-1">{fmtPct(pctMeta, 0)} da meta | TM {fmtCurrencyShort(v.ticketMedio)}</p>
+                      </td>
+                    )
+                  })}
+                </tr>
+                {/* Won Deals */}
+                <tr className="border-b border-white/[0.03]">
+                  <td className="py-4 px-3">
+                    <p className="text-white/60 font-medium">Deals Ganhos</p>
+                    <p className="text-[10px] text-white/25">quantidade no mes</p>
+                  </td>
+                  {chartVendedoras.map((v, i) => {
+                    const lost = lostByVendedora[v.nomeCompleto] || 0
+                    return (
+                      <td key={i} className="py-4 px-3 text-center">
+                        <p className="text-2xl font-bold text-emerald-400">{v.count}</p>
+                        <p className="text-[10px] text-white/25">{lost} perdidos</p>
+                      </td>
+                    )
+                  })}
+                </tr>
+                {/* Taxa de Conversao */}
+                <tr className="border-b border-white/[0.03]">
+                  <td className="py-4 px-3">
+                    <p className="text-white/60 font-medium">Taxa de Conversao</p>
+                    <p className="text-[10px] text-white/25">won / (won + lost)</p>
+                  </td>
+                  {chartVendedoras.map((v, i) => {
+                    const lost = lostByVendedora[v.nomeCompleto] || 0
+                    const total = v.count + lost
+                    const conv = total > 0 ? (v.count / total) * 100 : 0
+                    const convColor = conv >= 25 ? 'text-emerald-400' : conv >= 15 ? 'text-amber-400' : 'text-rose-400'
+                    return (
+                      <td key={i} className="py-4 px-3 text-center">
+                        <p className={`text-2xl font-bold ${convColor}`}>{fmtPct(conv, 1)}</p>
+                        <p className="text-[10px] text-white/25">{v.count}W / {total} total</p>
+                      </td>
+                    )
+                  })}
+                </tr>
+                {/* Atividades */}
+                <tr className="border-b border-white/[0.03]">
+                  <td className="py-4 px-3">
+                    <p className="text-white/60 font-medium">Atividades</p>
+                    <p className="text-[10px] text-white/25">total no mes</p>
+                  </td>
+                  {chartVendedoras.map((v, i) => {
+                    const atv = atividades.find(a => a.vendedora === v.nomeCompleto) || {}
+                    const totalAtv = (atv.ligacoes || 0) + (atv.emails || 0) + (atv.reunioes || 0) + (atv.propostas || 0) + (atv.followups || 0) + (atv.whatsapp || 0)
+                    return (
+                      <td key={i} className="py-4 px-3 text-center">
+                        <p className="text-2xl font-bold text-white/80">{totalAtv}</p>
+                        <div className="flex justify-center gap-2 mt-1 text-[10px] text-white/25">
+                          <span>{atv.ligacoes || 0} lig</span>
+                          <span>{atv.emails || 0} em</span>
+                          <span>{atv.whatsapp || 0} wpp</span>
+                        </div>
+                      </td>
+                    )
+                  })}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </GlassCard>
 
-      {/* Atividades comparativas + Motivos de perda */}
+      {/* Motivos de perda — geral + atividades comparativas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <GlassCard>
           <div className="p-6">
-            <SectionTitle icon={BarChart3}>Atividades Comparativas</SectionTitle>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={atividadesChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="tipo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="Tayna" name="Tayna" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Gabrieli" name="Gabrieli" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </GlassCard>
-
-        <GlassCard>
-          <div className="p-6">
-            <SectionTitle icon={XCircle} description={`${totalLost} deals perdidos analisados`}>Motivos de Perda</SectionTitle>
+            <SectionTitle icon={XCircle} description={`${totalLost} deals perdidos analisados`}>Motivos de Perda (Geral)</SectionTitle>
             <div className="space-y-3 mt-4">
               {motivosData.map((m, i) => {
                 const pct = totalLost > 0 ? (m.count / totalLost) * 100 : 0
@@ -781,11 +870,31 @@ function TabInsideSales({ data, metrics }) {
             </div>
           </div>
         </GlassCard>
+
+        <GlassCard>
+          <div className="p-6">
+            <SectionTitle icon={BarChart3}>Atividades Comparativas</SectionTitle>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={atividadesChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="tipo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  {chartVendedoras.map((v, i) => (
+                    <Bar key={i} dataKey={v.nome} name={v.nome} fill={v.fill} radius={[4, 4, 0, 0]} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </GlassCard>
       </div>
 
     </div>
   )
 }
+
 
 // =============================================
 // TAB: CLOSER FTL
@@ -888,6 +997,16 @@ function TabClientes({ data, metrics, fetchWithMes }) {
       aVal = termometroOrder[a.termometro] ?? 99
       bVal = termometroOrder[b.termometro] ?? 99
     }
+    if (sortField === 'ticketMedio') {
+      aVal = a.wonDealsCount > 0 ? a.vendidoMes / a.wonDealsCount : 0
+      bVal = b.wonDealsCount > 0 ? b.vendidoMes / b.wonDealsCount : 0
+    }
+    if (sortField === 'taxaConversao') {
+      const aTotal = (a.wonDealsCount || 0) + (a.closedDealsCount || 0)
+      const bTotal = (b.wonDealsCount || 0) + (b.closedDealsCount || 0)
+      aVal = aTotal > 0 ? a.wonDealsCount / aTotal : 0
+      bVal = bTotal > 0 ? b.wonDealsCount / bTotal : 0
+    }
     if (typeof aVal === 'string') {
       return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
     }
@@ -959,10 +1078,11 @@ function TabClientes({ data, metrics, fetchWithMes }) {
                   <SortHeader field="termometro" align="center">Status</SortHeader>
                   <SortHeader field="perfil">Perfil</SortHeader>
                   <SortHeader field="responsavel">Proprietario</SortHeader>
-                  <SortHeader field="pessoas" align="center">Pessoas</SortHeader>
+                  <SortHeader field="openDealsCount" align="center">Oportunidades</SortHeader>
                   <SortHeader field="wonDealsCount" align="right">Won Deals</SortHeader>
-                  <SortHeader field="closedDealsCount" align="right">Fechados</SortHeader>
-                  <SortHeader field="vendidoMes" align="right">Vendido Mes</SortHeader>
+                  <SortHeader field="vendidoMes" align="right">Vendido</SortHeader>
+                  <SortHeader field="ticketMedio" align="right">Ticket Medio</SortHeader>
+                  <SortHeader field="taxaConversao" align="center">Conversao</SortHeader>
                 </tr>
               </thead>
               <tbody>
@@ -977,14 +1097,15 @@ function TabClientes({ data, metrics, fetchWithMes }) {
                     </td>
                     <td className="py-3 px-3 text-white/50 text-xs">{c.perfil}</td>
                     <td className="py-3 px-3 text-white/50">{(c.responsavel || '').split(' ').slice(0,2).join(' ')}</td>
-                    <td className="py-3 px-3 text-center text-white/60">{c.pessoas}</td>
+                    <td className="py-3 px-3 text-center font-medium text-cyan-400">{c.openDealsCount || 0}</td>
                     <td className="py-3 px-3 text-right font-medium text-emerald-400">{c.wonDealsCount}</td>
-                    <td className="py-3 px-3 text-right text-white/60">{c.closedDealsCount}</td>
                     <td className="py-3 px-3 text-right font-medium text-white/80">{c.vendidoMes > 0 ? fmtCurrency(c.vendidoMes) : '-'}</td>
+                    <td className="py-3 px-3 text-right text-white/60">{c.wonDealsCount > 0 ? fmtCurrencyShort(c.vendidoMes / c.wonDealsCount) : '-'}</td>
+                    <td className="py-3 px-3 text-center">{(() => { const total = (c.wonDealsCount || 0) + (c.closedDealsCount || 0); const rate = total > 0 ? (c.wonDealsCount / total) * 100 : 0; const color = rate >= 25 ? 'text-emerald-400' : rate >= 15 ? 'text-amber-400' : 'text-rose-400'; return <span className={color}>{rate > 0 ? fmtPct(rate, 0) : '-'}</span> })()}</td>
                   </tr>
                 ))}
                 {clientesFiltrados.length === 0 && (
-                  <tr><td colSpan={8} className="py-8 text-center text-white/20 text-sm">Nenhum cliente encontrado</td></tr>
+                  <tr><td colSpan={9} className="py-8 text-center text-white/20 text-sm">Nenhum cliente encontrado</td></tr>
                 )}
               </tbody>
             </table>
