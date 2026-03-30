@@ -37,11 +37,17 @@ const ORG_PERFIL_COMPRA_KEY = 'e52751b2ca4cdbe74f9f473e158d2f8689c7e66f'
 const STATUS_TERMOMETRO_MAP = { '252': 'ATIVO', '253': 'ATENCAO', '254': 'RISCO', '255': 'INATIVO' }
 const PERFIL_COMPRA_MAP = { '249': 'A - Cotacao diaria', '250': 'B - Cotacao semanal', '251': 'C - Cotacao esporadica' }
 
-// Mapeamento de users
+// Mapeamento de users (todos os usuarios do sistema)
 const USERS = {
   24188122: 'Tayna Kazial',
   24588753: 'Gabrieli Muneretto',
   23289334: 'Laurence Tataren'
+}
+
+// Apenas vendedoras — usado para inicializar metricas do dashboard (exclui Laurence)
+const VENDEDORAS = {
+  24188122: 'Tayna Kazial',
+  24588753: 'Gabrieli Muneretto'
 }
 
 // Mapeamento de tipos de atividade para categorias do dashboard
@@ -264,7 +270,7 @@ function buildPerformance(wonDeals, mesAtual) {
   const wonMesAtual = wonDeals.filter(d => d.mes === mesAtual)
   // Inicializa TODAS as vendedoras do mapa para garantir que aparecem mesmo sem deals
   const porVendedora = {}
-  Object.values(USERS).forEach(nome => {
+  Object.values(VENDEDORAS).forEach(nome => {
     porVendedora[nome] = { nome, count: 0, valor: 0 }
   })
   wonMesAtual.forEach(d => {
@@ -328,7 +334,7 @@ function buildAtividades(activities) {
   // Agrupa atividades por user
   // Inicializa TODAS as vendedoras para garantir presenca mesmo sem atividades
   const byUser = {}
-  Object.values(USERS).forEach(nome => {
+  Object.values(VENDEDORAS).forEach(nome => {
     byUser[nome] = { vendedora: nome, ligacoes: 0, emails: 0, whatsapp: 0, reunioes: 0, propostas: 0, followups: 0 }
   })
 
@@ -392,29 +398,37 @@ function processClientesAtivos(orgs, wonDeals, mesFiltro) {
 
 function buildAtividadesStatus(doneActivities, pendingActivities, overdueActivities) {
   const byVendedora = {}
-  Object.values(USERS).forEach(nome => {
-    byVendedora[nome] = { vendedora: nome, agendadas: 0, executadas: 0, atrasadas: 0 }
+  Object.values(VENDEDORAS).forEach(nome => {
+    byVendedora[nome] = { vendedora: nome, agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 }
   })
 
   doneActivities.forEach(a => {
-    const userName = USERS[a.user_id]
+    const userName = VENDEDORAS[a.user_id]
     if (!userName) return
-    if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, atrasadas: 0 }
+    if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 }
     byVendedora[userName].executadas++
     byVendedora[userName].agendadas++
+    const doneDate = (a.done_time || '').substring(0, 10)
+    const dueDate = a.due_date || ''
+    if (doneDate && dueDate) {
+      if (doneDate <= dueDate) byVendedora[userName].noPrazo++
+      else byVendedora[userName].foraDoPrazo++
+    } else {
+      byVendedora[userName].noPrazo++
+    }
   })
 
   pendingActivities.forEach(a => {
-    const userName = USERS[a.user_id]
+    const userName = VENDEDORAS[a.user_id]
     if (!userName) return
-    if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, atrasadas: 0 }
+    if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 }
     byVendedora[userName].agendadas++
   })
 
   overdueActivities.forEach(a => {
-    const userName = USERS[a.user_id]
+    const userName = VENDEDORAS[a.user_id]
     if (!userName) return
-    if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, atrasadas: 0 }
+    if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 }
     byVendedora[userName].atrasadas++
   })
 
@@ -422,8 +436,10 @@ function buildAtividadesStatus(doneActivities, pendingActivities, overdueActivit
   const totais = result.reduce((acc, v) => ({
     agendadas: acc.agendadas + v.agendadas,
     executadas: acc.executadas + v.executadas,
+    noPrazo: acc.noPrazo + v.noPrazo,
+    foraDoPrazo: acc.foraDoPrazo + v.foraDoPrazo,
     atrasadas: acc.atrasadas + v.atrasadas
-  }), { agendadas: 0, executadas: 0, atrasadas: 0 })
+  }), { agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 })
 
   return { porVendedora: result, totais }
 }
@@ -431,7 +447,7 @@ function buildAtividadesStatus(doneActivities, pendingActivities, overdueActivit
 function buildDealsOrfaos(openDeals) {
   const orfaos = openDeals.filter(d => !d.nextActivityDate && d.estagio !== 'BUGS')
   const byVendedora = {}
-  Object.values(USERS).forEach(nome => { byVendedora[nome] = [] })
+  Object.values(VENDEDORAS).forEach(nome => { byVendedora[nome] = [] })
   orfaos.forEach(d => {
     if (!byVendedora[d.vendedora]) byVendedora[d.vendedora] = []
     byVendedora[d.vendedora].push(d)
@@ -446,7 +462,7 @@ function buildDealsOrfaos(openDeals) {
 function buildAtividadesDiarias(activities) {
   const byDay = {}
   activities.forEach(a => {
-    const userName = USERS[a.user_id]
+    const userName = VENDEDORAS[a.user_id]
     if (!userName) return
     const dia = (a.due_date || a.done_time || a.update_time || '').substring(0, 10)
     if (!dia) return
@@ -486,7 +502,7 @@ function buildSalesVelocity(wonDeals, lostDeals, mesAtual) {
   const geral = calcVelocity(wonMes, lostMes)
 
   const porVendedora = {}
-  Object.values(USERS).forEach(nome => {
+  Object.values(VENDEDORAS).forEach(nome => {
     const wonV = wonMes.filter(d => d.vendedora === nome)
     const lostV = lostMes.filter(d => d.vendedora === nome)
     porVendedora[nome] = calcVelocity(wonV, lostV)
@@ -576,7 +592,7 @@ function buildTempoResposta(doneActivities, openDeals, wonDeals, lostDeals) {
   }
 
   const porVendedora = {}
-  Object.values(USERS).forEach(nome => {
+  Object.values(VENDEDORAS).forEach(nome => {
     const resp = respostas.filter(r => r.vendedora === nome)
     porVendedora[nome] = resp.length > 0
       ? Math.round(resp.reduce((s, r) => s + r.horasResposta, 0) / resp.length * 10) / 10
