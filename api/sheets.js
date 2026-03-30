@@ -94,24 +94,26 @@ async function fetchAllPages(endpoint, params = {}, filterFn = null) {
 // ========== DATA FETCHING ==========
 
 async function fetchOpenDeals() {
-  // Busca deals abertos de cada stage do Pipeline 7 (everyone=1 para incluir todos os usuarios)
-  const allDeals = []
-  for (const stageId of FUNIL_STAGES) {
-    const deals = await fetchAllPages(`stages/${stageId}/deals`, { everyone: '1' })
-    allDeals.push(...deals)
-  }
-  return allDeals
+  // Busca deals abertos de cada stage do Pipeline 7 em PARALELO
+  const results = await Promise.all(
+    FUNIL_STAGES.map(stageId => fetchAllPages(`stages/${stageId}/deals`, { everyone: '1' }))
+  )
+  return results.flat()
 }
 
-async function fetchWonDeals() {
-  // Busca todos os won deals de todos usuarios e filtra por pipeline_id === 7
-  const deals = await fetchAllPages('deals', { status: 'won', user_id: '0' }, d => d.pipeline_id === PIPELINE_ID)
+async function fetchWonDeals(sinceDate) {
+  // Busca won deals filtrados por pipeline 7 e data minima (reduz paginacao)
+  const params = { status: 'won', user_id: '0', sort: 'update_time DESC' }
+  if (sinceDate) params.start_date = sinceDate
+  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID)
   return deals
 }
 
-async function fetchLostDeals() {
-  // Busca todos os lost deals de todos usuarios e filtra por pipeline_id === 7
-  const deals = await fetchAllPages('deals', { status: 'lost', user_id: '0' }, d => d.pipeline_id === PIPELINE_ID)
+async function fetchLostDeals(sinceDate) {
+  // Busca lost deals filtrados por pipeline 7 e data minima (reduz paginacao)
+  const params = { status: 'lost', user_id: '0', sort: 'update_time DESC' }
+  if (sinceDate) params.start_date = sinceDate
+  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID)
   return deals
 }
 
@@ -453,6 +455,11 @@ function getMetas() {
 
 // ========== MAIN HANDLER ==========
 
+// Vercel: aumenta timeout para 30s (plano hobby suporta ate 60s em funcoes)
+export const config = {
+  maxDuration: 30
+}
+
 export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -480,15 +487,19 @@ export default async function handler(req, res) {
     const startOfFilterMonth = `${mesFiltro}-01`
     const endOfFilterMonth = `${mesFiltro}-31`
 
-    // Busca dados em paralelo (todos usuarios, everyone=1 + ClickUp Flash FTL)
+    // Data de corte: 6 meses atras (para historico) - reduz drasticamente a paginacao
+    const sinceDate = new Date(now.getFullYear(), now.getMonth() - 6, 1)
+    const sinceDateStr = `${sinceDate.getFullYear()}-${String(sinceDate.getMonth() + 1).padStart(2, '0')}-01`
+
+    // Busca TODOS os dados em paralelo (6 chamadas simultaneas)
     const clickupPromise = CLICKUP_API_TOKEN
       ? fetchFlashFTLTasks(mesFiltro).catch(err => { console.error('ClickUp error:', err); return [] })
       : Promise.resolve([])
 
     const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs] = await Promise.all([
       fetchOpenDeals(),
-      fetchWonDeals(),
-      fetchLostDeals(),
+      fetchWonDeals(sinceDateStr),
+      fetchLostDeals(sinceDateStr),
       fetchActivities(startOfFilterMonth, endOfFilterMonth),
       clickupPromise,
       fetchClientesAtivos().catch(err => { console.error('Orgs error:', err); return [] })
