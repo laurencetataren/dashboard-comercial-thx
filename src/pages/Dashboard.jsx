@@ -926,7 +926,7 @@ function TabInsideSales({ data, metrics }) {
             </div>
           </div>
         </GlassCard>
-      </div>      </div>
+      </div>
 
       {/* ============================================= */}
       {/* QUADRO OPERACIONAL DE ATIVIDADES              */}
