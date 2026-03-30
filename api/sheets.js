@@ -72,12 +72,13 @@ async function pipedriveFetch(endpoint, params = {}) {
   return res.json()
 }
 
-async function fetchAllPages(endpoint, params = {}, filterFn = null) {
+async function fetchAllPages(endpoint, params = {}, filterFn = null, maxPages = 50) {
   let allData = []
   let start = 0
   const limit = 100
+  let page = 0
 
-  while (true) {
+  while (page < maxPages) {
     const result = await pipedriveFetch(endpoint, { ...params, start: String(start), limit: String(limit) })
     if (!result.data) break
 
@@ -86,6 +87,7 @@ async function fetchAllPages(endpoint, params = {}, filterFn = null) {
 
     if (!result.additional_data?.pagination?.more_items_in_collection) break
     start = result.additional_data.pagination.next_start
+    page++
   }
 
   return allData
@@ -105,7 +107,7 @@ async function fetchWonDeals(sinceDate) {
   // Busca won deals filtrados por pipeline 7 e data minima (reduz paginacao)
   const params = { status: 'won', user_id: '0', sort: 'update_time DESC' }
   if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID)
+  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 5)
   return deals
 }
 
@@ -113,7 +115,7 @@ async function fetchLostDeals(sinceDate) {
   // Busca lost deals filtrados por pipeline 7 e data minima (reduz paginacao)
   const params = { status: 'lost', user_id: '0', sort: 'update_time DESC' }
   if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID)
+  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 5)
   return deals
 }
 
@@ -123,7 +125,7 @@ async function fetchActivities(startDate, endDate) {
     start_date: startDate,
     end_date: endDate,
     done: '1'
-  })
+  }, null, 3)
   return activities
 }
 
