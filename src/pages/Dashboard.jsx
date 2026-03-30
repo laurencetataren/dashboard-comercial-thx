@@ -181,6 +181,7 @@ export default function Dashboard() {
 // =============================================
 function TabVisaoGeral({ data, metrics }) {
   const [expandedCard, setExpandedCard] = useState(null)
+  const [expandedFat, setExpandedFat] = useState(null)
 
   const chartData = metrics.historico.map(h => ({
     mes: fmtMes(h.mes),
@@ -322,37 +323,72 @@ function TabVisaoGeral({ data, metrics }) {
 
         return (
           <>
-            {/* Faturado com barra de progresso */}
-            <GlassCard>
-              <div className={`p-6 border-l-4 ${fatColorBorder}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${fatColorBg} flex items-center justify-center`}>
-                      <DollarSign size={20} className={fatColorText} />
+            {/* Faturado com barra de progresso — clicavel para ver cargas */}
+            <div>
+              <GlassCard>
+                <div
+                  className={`p-6 border-l-4 ${fatColorBorder} cursor-pointer select-none`}
+                  onClick={() => setExpandedFat(expandedFat === 'faturado' ? null : 'faturado')}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${fatColorBg} flex items-center justify-center`}>
+                        <DollarSign size={20} className={fatColorText} />
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Faturado | {fmtMesFull(metrics.mesAtual)}</p>
+                        <p className="text-xs text-white/30 mt-0.5">{faturado.countCargas} cargas faturadas</p>
+                      </div>
                     </div>
+                    <div className="text-right">
+                      <p className={`text-3xl font-bold ${fatColorText}`}>{fmtPct(pctFaturadoMeta, 1)}</p>
+                      <p className="text-xs text-white/30">da meta</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6 mb-4">
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Faturado | {fmtMesFull(metrics.mesAtual)}</p>
-                      <p className="text-xs text-white/30 mt-0.5">{faturado.countCargas} cargas faturadas</p>
+                      <p className="text-xs text-white/40 mb-1">Faturado</p>
+                      <p className="text-xl font-bold text-white">{fmtCurrency(totalFaturado)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-white/40 mb-1">Meta</p>
+                      <p className="text-xl font-bold text-white/60">{fmtCurrency(metaFaturado)}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-3xl font-bold ${fatColorText}`}>{fmtPct(pctFaturadoMeta, 1)}</p>
-                    <p className="text-xs text-white/30">da meta</p>
+                  <ProgressBar value={totalFaturado} max={metaFaturado} color={fatColor} size="lg" />
+                  <div className="flex justify-end mt-2">
+                    <span className="text-[10px] text-white/25">{expandedFat === 'faturado' ? 'fechar' : 'ver cargas'} ▾</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-6 mb-4">
-                  <div>
-                    <p className="text-xs text-white/40 mb-1">Faturado</p>
-                    <p className="text-xl font-bold text-white">{fmtCurrency(totalFaturado)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-white/40 mb-1">Meta</p>
-                    <p className="text-xl font-bold text-white/60">{fmtCurrency(metaFaturado)}</p>
-                  </div>
+              </GlassCard>
+              {expandedFat === 'faturado' && (
+                <div className="mt-1 rounded-xl border border-white/[0.06] bg-[#0d0d24]/90 backdrop-blur-md">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-[#0d0d24]">
+                      <tr className="border-b border-white/[0.06]">
+                        <th className="text-left py-2 px-3 text-[10px] uppercase text-white/30">Carga</th>
+                        <th className="text-right py-2 px-3 text-[10px] uppercase text-white/30">Frete</th>
+                        <th className="text-left py-2 px-3 text-[10px] uppercase text-white/30">Status</th>
+                        <th className="text-left py-2 px-3 text-[10px] uppercase text-white/30">Coleta</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(faturado.tasks || []).slice(0, 30).map((t, i) => (
+                        <tr key={t.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                          <td className="py-1.5 px-3 text-white/70">{t.customId || t.nome}</td>
+                          <td className={`py-1.5 px-3 text-right font-medium ${fatColorText}`}>{fmtCurrency(t.freteEmpresa)}</td>
+                          <td className="py-1.5 px-3 text-white/40 capitalize">{t.status}</td>
+                          <td className="py-1.5 px-3 text-white/40">{t.dataColeta}</td>
+                        </tr>
+                      ))}
+                      {(faturado.tasks || []).length === 0 && (
+                        <tr><td colSpan={4} className="py-3 text-center text-white/20 text-[10px]">Nenhuma carga faturada no periodo</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-                <ProgressBar value={totalFaturado} max={metaFaturado} color={fatColor} size="lg" />
-              </div>
-            </GlassCard>
+              )}
+            </div>
 
             {/* Vendido vs Faturado % + Perdas/No Show */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -373,20 +409,51 @@ function TabVisaoGeral({ data, metrics }) {
                 </div>
               </GlassCard>
 
-              <GlassCard hover>
-                <div className="p-5 border-l-2 border-rose-500/40">
-                  <div className="flex items-start justify-between mb-3">
-                    <p className="text-[11px] uppercase tracking-[0.15em] text-rose-400/80 font-medium">Perdas / No Show</p>
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500/20 to-rose-500/10 flex items-center justify-center">
-                      <AlertTriangle size={16} className="text-rose-400" />
+              <div>
+                <GlassCard hover>
+                  <div
+                    className="p-5 border-l-2 border-rose-500/40 cursor-pointer select-none"
+                    onClick={() => setExpandedFat(expandedFat === 'perdas' ? null : 'perdas')}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <p className="text-[11px] uppercase tracking-[0.15em] text-rose-400/80 font-medium">Perdas / No Show</p>
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500/20 to-rose-500/10 flex items-center justify-center">
+                        <AlertTriangle size={16} className="text-rose-400" />
+                      </div>
+                    </div>
+                    <p className="text-2xl font-bold text-rose-400 mb-1">{fmtCurrency(perdasPositivo)}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-rose-400/50">GAP entre vendido e faturado</p>
+                      <span className="text-[10px] text-white/25">{expandedFat === 'perdas' ? 'fechar' : 'ver perdas'} ▾</span>
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-rose-400 mb-1">{fmtCurrency(perdasPositivo)}</p>
-                  <p className="text-sm text-rose-400/50">
-                    GAP entre vendido e faturado
-                  </p>
-                </div>
-              </GlassCard>
+                </GlassCard>
+                {expandedFat === 'perdas' && (
+                  <div className="mt-1 rounded-xl border border-white/[0.06] bg-[#0d0d24]/90 backdrop-blur-md">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-[#0d0d24]">
+                        <tr className="border-b border-white/[0.06]">
+                          <th className="text-left py-2 px-3 text-[10px] uppercase text-white/30">Carga</th>
+                          <th className="text-right py-2 px-3 text-[10px] uppercase text-white/30">Valor</th>
+                          <th className="text-left py-2 px-3 text-[10px] uppercase text-white/30">Motivo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(data?.closerFTL?.lostTasks || []).slice(0, 30).map((t, i) => (
+                          <tr key={t.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                            <td className="py-1.5 px-3 text-white/70">{t.customId || t.nome}</td>
+                            <td className="py-1.5 px-3 text-right font-medium text-rose-400">{fmtCurrency(t.freteEmpresa)}</td>
+                            <td className="py-1.5 px-3 text-white/40 capitalize">{t.motivoNoShow || t.status}</td>
+                          </tr>
+                        ))}
+                        {(data?.closerFTL?.lostTasks || []).length === 0 && (
+                          <tr><td colSpan={3} className="py-3 text-center text-white/20 text-[10px]">Nenhuma perda registrada no periodo</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )
