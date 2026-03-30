@@ -211,7 +211,11 @@ function buildFunil(openDeals) {
 
 function buildPerformance(wonDeals, mesAtual) {
   const wonMesAtual = wonDeals.filter(d => d.mes === mesAtual)
+  // Inicializa TODAS as vendedoras do mapa para garantir que aparecem mesmo sem deals
   const porVendedora = {}
+  Object.values(USERS).forEach(nome => {
+    porVendedora[nome] = { nome, count: 0, valor: 0 }
+  })
   wonMesAtual.forEach(d => {
     const v = d.vendedora
     if (!porVendedora[v]) porVendedora[v] = { nome: v, count: 0, valor: 0 }
@@ -271,7 +275,11 @@ function buildHistoricoMensal(wonDeals, lostDeals, openDeals) {
 
 function buildAtividades(activities) {
   // Agrupa atividades por user
+  // Inicializa TODAS as vendedoras para garantir presenca mesmo sem atividades
   const byUser = {}
+  Object.values(USERS).forEach(nome => {
+    byUser[nome] = { vendedora: nome, ligacoes: 0, emails: 0, whatsapp: 0, reunioes: 0, propostas: 0, followups: 0 }
+  })
 
   activities.forEach(a => {
     const userId = a.user_id
