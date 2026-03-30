@@ -120,12 +120,44 @@ async function fetchLostDeals(sinceDate) {
 }
 
 async function fetchActivities(startDate, endDate) {
-  // Busca atividades no periodo
+  // Busca atividades REALIZADAS no periodo, max 5 paginas
   const activities = await fetchAllPages('activities', {
     start_date: startDate,
     end_date: endDate,
     done: '1'
-  }, null, 2)
+  }, null, 5)
+  return activities
+}
+
+async function fetchPendingActivities(startDate, endDate) {
+  const activities = await fetchAllPages('activities', {
+    start_date: startDate,
+    end_date: endDate,
+    done: '0'
+  }, null, 5)
+  return activities
+}
+
+async function fetchActivities30Days() {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)
+  const startStr = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`
+  const endStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+  const activities = await fetchAllPages('activities', {
+    start_date: startStr, end_date: endStr, done: '1'
+  }, null, 10)
+  return activities
+}
+
+async function fetchOverdueActivities() {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+  const startStr = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-01`
+  const endStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`
+  const activities = await fetchAllPages('activities', {
+    start_date: startStr, end_date: endStr, done: '0'
+  }, null, 5)
   return activities
 }
 
@@ -153,28 +185,44 @@ function getMonthKey(dateStr) {
 }
 
 function processOpenDeals(deals) {
-  return deals.map(d => ({
-    id: String(d.id),
-    titulo: d.title || '',
-    valor: d.value || 0,
-    estagio: getStageName(d.stage_id),
-    vendedora: getUserName(d),
-    empresa: getOrgName(d),
-    dataCriacao: d.add_time ? d.add_time.substring(0, 10) : '',
-    dataAtualizacao: d.update_time ? d.update_time.substring(0, 10) : ''
-  }))
+  const now = new Date()
+  return deals.map(d => {
+    const addTime = d.add_time ? d.add_time.substring(0, 10) : ''
+    const diasParado = addTime ? Math.floor((now - new Date(addTime)) / (1000*60*60*24)) : 0
+    return {
+      id: String(d.id),
+      titulo: d.title || '',
+      valor: d.value || 0,
+      estagio: getStageName(d.stage_id),
+      vendedora: getUserName(d),
+      empresa: getOrgName(d),
+      dataCriacao: addTime,
+      dataAtualizacao: d.update_time ? d.update_time.substring(0, 10) : '',
+      nextActivityDate: d.next_activity_date || null,
+      nextActivityId: d.next_activity_id || null,
+      diasParado
+    }
+  })
 }
 
 function processWonDeals(deals, mesAtual) {
   return deals.map(d => {
     const mes = getMonthKey(d.won_time) || getMonthKey(d.close_time) || getMonthKey(d.update_time) || mesAtual
+    const addTime = d.add_time ? d.add_time.substring(0, 10) : ''
+    const wonTime = (d.won_time || d.close_time || d.update_time || '').substring(0, 10)
+    let cicloDias = 0
+    if (addTime && wonTime) {
+      cicloDias = Math.max(1, Math.floor((new Date(wonTime) - new Date(addTime)) / (1000*60*60*24)))
+    }
     return {
       id: String(d.id),
       titulo: d.title || '',
       valor: d.value || 0,
       vendedora: getUserName(d),
       empresa: getOrgName(d),
-      dataGanho: (d.won_time || d.close_time || d.update_time || '').substring(0, 10),
+      dataGanho: wonTime,
+      dataCriacao: addTime,
+      cicloDias,
       mes
     }
   })
@@ -183,12 +231,15 @@ function processWonDeals(deals, mesAtual) {
 function processLostDeals(deals, mesAtual) {
   return deals.map(d => {
     const mes = getMonthKey(d.lost_time) || getMonthKey(d.close_time) || getMonthKey(d.update_time) || mesAtual
+    const addTime = d.add_time ? d.add_time.substring(0, 10) : ''
     return {
       id: String(d.id),
       titulo: d.title || '',
       valor: d.value || 0,
       vendedora: getUserName(d),
+      empresa: getOrgName(d),
       motivo: d.lost_reason || 'Sem motivo',
+      dataCriacao: addTime,
       mes
     }
   })
@@ -335,6 +386,214 @@ function processClientesAtivos(orgs, wonDeals, mesFiltro) {
       dealsGanhosMes: wonData.count
     }
   }).sort((a, b) => b.wonDealsCount - a.wonDealsCount)
+}
+
+// ========== QUALITY INDICATORS ==========
+
+function buildAtividadesStatus(doneActivities, pendingActivities, overdueActivities) {
+  const byVendedora = {}
+  Object.values(USERS).forEach(nome => {
+    byVendedora[nome] = { vendedora: nome, agendadas: 0, executadas: 0, atrasadas: 0 }
+  })
+
+  doneActivities.forEach(a => {
+    const userName = USERS[a.user_id]
+    if (!userName) return
+    if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, atrasadas: 0 }
+    byVendedora[userName].executadas++
+    byVendedora[userName].agendadas++
+  })
+
+  pendingActivities.forEach(a => {
+    const userName = USERS[a.user_id]
+    if (!userName) return
+    if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, atrasadas: 0 }
+    byVendedora[userName].agendadas++
+  })
+
+  overdueActivities.forEach(a => {
+    const userName = USERS[a.user_id]
+    if (!userName) return
+    if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, atrasadas: 0 }
+    byVendedora[userName].atrasadas++
+  })
+
+  const result = Object.values(byVendedora)
+  const totais = result.reduce((acc, v) => ({
+    agendadas: acc.agendadas + v.agendadas,
+    executadas: acc.executadas + v.executadas,
+    atrasadas: acc.atrasadas + v.atrasadas
+  }), { agendadas: 0, executadas: 0, atrasadas: 0 })
+
+  return { porVendedora: result, totais }
+}
+
+function buildDealsOrfaos(openDeals) {
+  const orfaos = openDeals.filter(d => !d.nextActivityDate && d.estagio !== 'BUGS')
+  const byVendedora = {}
+  Object.values(USERS).forEach(nome => { byVendedora[nome] = [] })
+  orfaos.forEach(d => {
+    if (!byVendedora[d.vendedora]) byVendedora[d.vendedora] = []
+    byVendedora[d.vendedora].push(d)
+  })
+  return {
+    total: orfaos.length,
+    deals: orfaos.sort((a, b) => b.diasParado - a.diasParado),
+    porVendedora: byVendedora
+  }
+}
+
+function buildAtividadesDiarias(activities) {
+  const byDay = {}
+  activities.forEach(a => {
+    const userName = USERS[a.user_id]
+    if (!userName) return
+    const dia = (a.due_date || a.done_time || a.update_time || '').substring(0, 10)
+    if (!dia) return
+    if (!byDay[dia]) byDay[dia] = {}
+    if (!byDay[dia][userName]) byDay[dia][userName] = { total: 0, ligacoes: 0 }
+    byDay[dia][userName].total++
+    const cat = ACTIVITY_MAP[a.type]
+    if (cat === 'ligacoes') byDay[dia][userName].ligacoes++
+  })
+
+  return Object.entries(byDay)
+    .map(([dia, vendedoras]) => ({ dia, ...vendedoras }))
+    .sort((a, b) => a.dia.localeCompare(b.dia))
+}
+
+function buildSalesVelocity(wonDeals, lostDeals, mesAtual) {
+  const wonMes = wonDeals.filter(d => d.mes === mesAtual)
+  const lostMes = lostDeals.filter(d => d.mes === mesAtual)
+
+  function calcVelocity(won, lost) {
+    const numDeals = won.length + lost.length
+    const valorMedio = won.length > 0 ? won.reduce((s, d) => s + d.valor, 0) / won.length : 0
+    const conversao = numDeals > 0 ? won.length / numDeals : 0
+    const ciclos = won.filter(d => d.cicloDias > 0).map(d => d.cicloDias)
+    const cicloMedio = ciclos.length > 0 ? ciclos.reduce((s, c) => s + c, 0) / ciclos.length : 1
+    const velocity = cicloMedio > 0 ? (numDeals * valorMedio * conversao) / cicloMedio : 0
+
+    return {
+      velocity: Math.round(velocity),
+      numDeals,
+      valorMedio: Math.round(valorMedio),
+      conversao: Math.round(conversao * 1000) / 10,
+      cicloMedio: Math.round(cicloMedio * 10) / 10
+    }
+  }
+
+  const geral = calcVelocity(wonMes, lostMes)
+
+  const porVendedora = {}
+  Object.values(USERS).forEach(nome => {
+    const wonV = wonMes.filter(d => d.vendedora === nome)
+    const lostV = lostMes.filter(d => d.vendedora === nome)
+    porVendedora[nome] = calcVelocity(wonV, lostV)
+  })
+
+  return { geral, porVendedora }
+}
+
+function buildFollowupFrequency(doneActivities, wonDeals, lostDeals, mesAtual) {
+  const actsByDeal = {}
+  doneActivities.forEach(a => {
+    const dealId = a.deal_id
+    if (!dealId) return
+    if (!actsByDeal[dealId]) actsByDeal[dealId] = 0
+    actsByDeal[dealId]++
+  })
+
+  const wonMes = wonDeals.filter(d => d.mes === mesAtual)
+  const lostMes = lostDeals.filter(d => d.mes === mesAtual)
+
+  const wonFollowups = wonMes.map(d => actsByDeal[d.id] || 0)
+  const lostFollowups = lostMes.map(d => actsByDeal[d.id] || 0)
+
+  const avgWon = wonFollowups.length > 0 ? wonFollowups.reduce((s, v) => s + v, 0) / wonFollowups.length : 0
+  const avgLost = lostFollowups.length > 0 ? lostFollowups.reduce((s, v) => s + v, 0) / lostFollowups.length : 0
+
+  function countByRange(arr) {
+    return {
+      zero: arr.filter(v => v === 0).length,
+      um_dois: arr.filter(v => v >= 1 && v <= 2).length,
+      tres_cinco: arr.filter(v => v >= 3 && v <= 5).length,
+      seis_dez: arr.filter(v => v >= 6 && v <= 10).length,
+      mais_dez: arr.filter(v => v > 10).length
+    }
+  }
+
+  return {
+    mediaWon: Math.round(avgWon * 10) / 10,
+    mediaLost: Math.round(avgLost * 10) / 10,
+    distribuicaoWon: countByRange(wonFollowups),
+    distribuicaoLost: countByRange(lostFollowups)
+  }
+}
+
+function buildTempoResposta(doneActivities, openDeals, wonDeals, lostDeals) {
+  const firstActivityByDeal = {}
+  doneActivities.forEach(a => {
+    const dealId = a.deal_id
+    if (!dealId) return
+    const actTime = a.done_time || a.add_time || a.update_time || ''
+    if (!actTime) return
+    if (!firstActivityByDeal[dealId] || actTime < firstActivityByDeal[dealId]) {
+      firstActivityByDeal[dealId] = actTime
+    }
+  })
+
+  const allDeals = [...openDeals, ...wonDeals, ...lostDeals]
+  const respostas = []
+
+  allDeals.forEach(d => {
+    const firstAct = firstActivityByDeal[d.id]
+    if (!firstAct || !d.dataCriacao) return
+    const addDate = new Date(d.dataCriacao)
+    const actDate = new Date(firstAct)
+    const horasResposta = Math.max(0, (actDate - addDate) / (1000 * 60 * 60))
+
+    if (horasResposta < 720) {
+      respostas.push({
+        dealId: d.id,
+        empresa: d.empresa,
+        vendedora: d.vendedora,
+        horasResposta: Math.round(horasResposta * 10) / 10,
+        valor: d.valor
+      })
+    }
+  })
+
+  const media = respostas.length > 0
+    ? respostas.reduce((s, r) => s + r.horasResposta, 0) / respostas.length
+    : 0
+
+  const distribuicao = {
+    ate2h: respostas.filter(r => r.horasResposta <= 2).length,
+    de2a4h: respostas.filter(r => r.horasResposta > 2 && r.horasResposta <= 4).length,
+    de4a8h: respostas.filter(r => r.horasResposta > 4 && r.horasResposta <= 8).length,
+    mais8h: respostas.filter(r => r.horasResposta > 8).length
+  }
+
+  const porVendedora = {}
+  Object.values(USERS).forEach(nome => {
+    const resp = respostas.filter(r => r.vendedora === nome)
+    porVendedora[nome] = resp.length > 0
+      ? Math.round(resp.reduce((s, r) => s + r.horasResposta, 0) / resp.length * 10) / 10
+      : 0
+  })
+
+  const ultimos10 = respostas
+    .sort((a, b) => b.dealId - a.dealId)
+    .slice(0, 10)
+
+  return {
+    mediaGeral: Math.round(media * 10) / 10,
+    porVendedora,
+    distribuicao,
+    ultimos10,
+    totalAnalisados: respostas.length
+  }
 }
 
 // ========== CLICKUP API (Flash FTL â Faturado) ==========
@@ -507,13 +766,16 @@ export default async function handler(req, res) {
       : Promise.resolve([])
 
     console.log('Starting parallel fetch at', Date.now())
-    const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs] = await Promise.all([
+    const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs, rawPending, rawActivities30d, rawOverdue] = await Promise.all([
       fetchOpenDeals(),
       fetchWonDeals(sinceDateStr),
       fetchLostDeals(sinceDateStr),
       fetchActivities(startOfFilterMonth, endOfFilterMonth),
       clickupPromise,
-      fetchClientesAtivos().catch(err => { console.error('Orgs error:', err); return [] })
+      fetchClientesAtivos().catch(err => { console.error('Orgs error:', err); return [] }),
+      fetchPendingActivities(startOfFilterMonth, endOfFilterMonth),
+      fetchActivities30Days(),
+      fetchOverdueActivities()
     ])
 
     // Processa dados
@@ -523,6 +785,14 @@ export default async function handler(req, res) {
     const atividades = buildAtividades(rawActivities)
     const clientesAtivos = processClientesAtivos(rawOrgs, wonDeals, mesFiltro)
     const { faturado: faturadoData, closerFTL: closerFTLData } = processFlashFTLData(rawFlashFTL)
+
+    // Quality indicators
+    const atividadesStatus = buildAtividadesStatus(rawActivities, rawPending, rawOverdue)
+    const dealsOrfaos = buildDealsOrfaos(openDeals)
+    const atividadesDiarias = buildAtividadesDiarias(rawActivities30d)
+    const salesVelocity = buildSalesVelocity(wonDeals, lostDeals, mesFiltro)
+    const followupFrequency = buildFollowupFrequency(rawActivities30d, wonDeals, lostDeals, mesFiltro)
+    const tempoResposta = buildTempoResposta(rawActivities30d, openDeals, wonDeals.filter(d => d.mes === mesFiltro), lostDeals.filter(d => d.mes === mesFiltro))
 
     // Meses disponiveis para filtro (ultimos 12 meses)
     const mesesDisponiveis = []
@@ -548,7 +818,13 @@ export default async function handler(req, res) {
       atividades,
       clientesAtivos,
       faturado: faturadoData,
-      closerFTL: closerFTLData
+      closerFTL: closerFTLData,
+      atividadesStatus,
+      dealsOrfaos,
+      atividadesDiarias,
+      salesVelocity,
+      followupFrequency,
+      tempoResposta
     }
 
     // Cache 5 minutos
@@ -664,6 +940,49 @@ function getDemoData() {
         { id: 'c4', customId: 'CARGA-7025', nome: 'WEG - Blumenau/SC x Gravatai/RS', status: 'cancelada', freteEmpresa: 5500, motivoNoShow: '', dataColeta: '2026-03-19' }
       ],
       lostTasks: []
+    },
+    atividadesStatus: {
+      porVendedora: [
+        { vendedora: 'Tayna Kazial', agendadas: 45, executadas: 38, atrasadas: 3 },
+        { vendedora: 'Gabrieli Muneretto', agendadas: 32, executadas: 25, atrasadas: 5 }
+      ],
+      totais: { agendadas: 77, executadas: 63, atrasadas: 8 }
+    },
+    dealsOrfaos: {
+      total: 4,
+      deals: [
+        { id: 'o1', titulo: 'Empresa Exemplo', vendedora: 'Tayna Kazial', diasParado: 12, valor: 15000 },
+        { id: 'o2', titulo: 'Logistica ABC', vendedora: 'Gabrieli Muneretto', diasParado: 8, valor: 22000 }
+      ],
+      porVendedora: { 'Tayna Kazial': [], 'Gabrieli Muneretto': [] }
+    },
+    atividadesDiarias: [
+      { dia: '2026-03-25', 'Tayna Kazial': { total: 8, ligacoes: 5 }, 'Gabrieli Muneretto': { total: 6, ligacoes: 3 } },
+      { dia: '2026-03-26', 'Tayna Kazial': { total: 10, ligacoes: 7 }, 'Gabrieli Muneretto': { total: 5, ligacoes: 2 } },
+      { dia: '2026-03-27', 'Tayna Kazial': { total: 7, ligacoes: 4 }, 'Gabrieli Muneretto': { total: 8, ligacoes: 6 } }
+    ],
+    salesVelocity: {
+      geral: { velocity: 12500, numDeals: 15, valorMedio: 18000, conversao: 46.7, cicloMedio: 10.2 },
+      porVendedora: {
+        'Tayna Kazial': { velocity: 7800, numDeals: 9, valorMedio: 20000, conversao: 55.6, cicloMedio: 9.5 },
+        'Gabrieli Muneretto': { velocity: 4700, numDeals: 6, valorMedio: 15000, conversao: 33.3, cicloMedio: 11.0 }
+      }
+    },
+    followupFrequency: {
+      mediaWon: 4.2,
+      mediaLost: 1.8,
+      distribuicaoWon: { zero: 0, um_dois: 2, tres_cinco: 4, seis_dez: 1, mais_dez: 0 },
+      distribuicaoLost: { zero: 3, um_dois: 4, tres_cinco: 1, seis_dez: 0, mais_dez: 0 }
+    },
+    tempoResposta: {
+      mediaGeral: 3.5,
+      porVendedora: { 'Tayna Kazial': 2.8, 'Gabrieli Muneretto': 4.2 },
+      distribuicao: { ate2h: 5, de2a4h: 4, de4a8h: 3, mais8h: 2 },
+      ultimos10: [
+        { dealId: 'd1', empresa: 'Transportadora Alpha', vendedora: 'Tayna Kazial', horasResposta: 1.5, valor: 25000 },
+        { dealId: 'd2', empresa: 'Logistica Beta', vendedora: 'Gabrieli Muneretto', horasResposta: 3.2, valor: 18000 }
+      ],
+      totalAnalisados: 14
     }
   }
 }
