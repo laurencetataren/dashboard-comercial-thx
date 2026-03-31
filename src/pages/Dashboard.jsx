@@ -392,22 +392,57 @@ function TabVisaoGeral({ data, metrics }) {
 
             {/* Vendido vs Faturado % + Perdas/No Show */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <GlassCard hover>
-                <div className="p-5 border-l-2 border-blue-500/20">
-                  <div className="flex items-start justify-between mb-3">
-                    <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Vendido vs Faturado</p>
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-500/5 flex items-center justify-center">
-                      <ArrowLeftRight size={16} className="text-blue-400" />
+              <div>
+                <GlassCard hover>
+                  <div
+                    className="p-5 border-l-2 border-blue-500/20 cursor-pointer select-none"
+                    onClick={() => setExpandedFat(expandedFat === 'vendidoFat' ? null : 'vendidoFat')}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-medium">Vendido vs Faturado</p>
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-500/5 flex items-center justify-center">
+                        <ArrowLeftRight size={16} className="text-blue-400" />
+                      </div>
+                    </div>
+                    <p className={`text-2xl font-bold mb-1 ${pctVendidoFaturado >= 90 ? 'text-emerald-400' : pctVendidoFaturado >= 70 ? 'text-amber-400' : 'text-rose-400'}`}>
+                      {fmtPct(pctVendidoFaturado, 1)}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-white/50">
+                        {fmtCurrency(totalFaturado)} de {fmtCurrency(totalVendido)} vendidos
+                      </p>
+                      <span className="text-[10px] text-white/25">{expandedFat === 'vendidoFat' ? 'fechar' : 'ver deals'} ▾</span>
                     </div>
                   </div>
-                  <p className={`text-2xl font-bold mb-1 ${pctVendidoFaturado >= 90 ? 'text-emerald-400' : pctVendidoFaturado >= 70 ? 'text-amber-400' : 'text-rose-400'}`}>
-                    {fmtPct(pctVendidoFaturado, 1)}
-                  </p>
-                  <p className="text-sm text-white/50">
-                    {fmtCurrency(totalFaturado)} de {fmtCurrency(totalVendido)} vendidos
-                  </p>
-                </div>
-              </GlassCard>
+                </GlassCard>
+                {expandedFat === 'vendidoFat' && (
+                  <div className="mt-1 rounded-xl border border-white/[0.06] bg-[#0d0d24]/90 backdrop-blur-md">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-[#0d0d24]">
+                        <tr className="border-b border-white/[0.06]">
+                          <th className="text-left py-2 px-3 text-[10px] uppercase text-white/30">Empresa</th>
+                          <th className="text-left py-2 px-3 text-[10px] uppercase text-white/30">Vendedora</th>
+                          <th className="text-right py-2 px-3 text-[10px] uppercase text-white/30">Valor</th>
+                          <th className="text-right py-2 px-3 text-[10px] uppercase text-white/30">Ganho em</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(data.wonDeals || []).slice(0, 50).map((d, i) => (
+                          <tr key={d.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                            <td className="py-1.5 px-3 text-white/70">{d.empresa || d.titulo}</td>
+                            <td className="py-1.5 px-3 text-white/40">{(d.vendedora || '').split(' ')[0]}</td>
+                            <td className="py-1.5 px-3 text-right font-medium text-emerald-400">{fmtCurrency(d.valor)}</td>
+                            <td className="py-1.5 px-3 text-right text-white/30">{d.dataGanho ? d.dataGanho.split('-').reverse().join('/') : '-'}</td>
+                          </tr>
+                        ))}
+                        {(data.wonDeals || []).length === 0 && (
+                          <tr><td colSpan={4} className="py-3 text-center text-white/20 text-[10px]">Nenhum deal ganho no periodo</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
 
               <div>
                 <GlassCard hover>
@@ -533,20 +568,49 @@ function TabVisaoGeral({ data, metrics }) {
 function TabFunil({ data, metrics }) {
   const [filtroVendedora, setFiltroVendedora] = useState('Todas')
   const [filtroEstagio, setFiltroEstagio] = useState('Todos')
+  const [sortField, setSortField] = useState('valor')
+  const [sortDir, setSortDir] = useState('desc')
 
   const stages = metrics.funil || []
   const totalDeals = stages.reduce((s, f) => s + f.count, 0)
   const totalValor = stages.reduce((s, f) => s + f.valor, 0)
 
-  // Vendedoras unicas
-  const vendedoras = [...new Set((data.openDeals || []).map(d => d.vendedora))].filter(Boolean)
+  // Vendedoras unicas (open + lost)
+  const allDeals = [...(data.openDeals || []), ...(data.lostDeals || [])]
+  const vendedoras = [...new Set(allDeals.map(d => d.vendedora))].filter(Boolean)
+
+  const handleFunilSort = (field) => {
+    if (sortField === field) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    else { setSortField(field); setSortDir('desc') }
+  }
+
+  const FunilSortHeader = ({ field, children, align }) => (
+    <th
+      className={`py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium cursor-pointer hover:text-white/60 select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+      onClick={() => handleFunilSort(field)}
+    >
+      {children} {sortField === field ? (sortDir === 'desc' ? '\u2193' : '\u2191') : ''}
+    </th>
+  )
+
+  const sortDeals = (arr) => [...arr].sort((a, b) => {
+    let aVal = a[sortField], bVal = b[sortField]
+    if (typeof aVal === 'string') return sortDir === 'asc' ? (aVal || '').localeCompare(bVal || '') : (bVal || '').localeCompare(aVal || '')
+    return sortDir === 'asc' ? (aVal || 0) - (bVal || 0) : (bVal || 0) - (aVal || 0)
+  })
 
   // Deals filtrados
-  const dealsFiltrados = (data.openDeals || []).filter(d => {
+  const dealsFiltrados = sortDeals((data.openDeals || []).filter(d => {
     if (filtroVendedora !== 'Todas' && d.vendedora !== filtroVendedora) return false
     if (filtroEstagio !== 'Todos' && d.estagio !== filtroEstagio) return false
     return true
-  }).sort((a, b) => (b.valor || 0) - (a.valor || 0))
+  }))
+
+  // Deals perdidos filtrados
+  const dealsPerdidosFiltrados = sortDeals((data.lostDeals || []).filter(d => {
+    if (filtroVendedora !== 'Todas' && d.vendedora !== filtroVendedora) return false
+    return true
+  }))
 
   const stageColors = ['#f59e0b', '#06b6d4', '#10b981']
   const stageIcons = ['FileText', 'MessageSquare', 'CheckCircle']
@@ -606,7 +670,7 @@ function TabFunil({ data, metrics }) {
               const convPct = stage.count > 0 ? Math.round((next.count / stage.count) * 100) : 0
               return (
                 <div key={i} className="text-center">
-                  <span className="text-[10px] text-white/25">{stage.nome.split(' ')[0]} â {next.nome.split(' ')[0]}</span>
+                  <span className="text-[10px] text-white/25">{stage.nome.split(' ')[0]} → {next.nome.split(' ')[0]}</span>
                   <p className="text-xs font-semibold text-white/50">{convPct}% conv.</p>
                 </div>
               )
@@ -659,11 +723,11 @@ function TabFunil({ data, metrics }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.06]">
-                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Empresa</th>
-                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Estagio</th>
-                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Vendedora</th>
-                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Valor</th>
-                  <th className="text-right py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Criado em</th>
+                  <FunilSortHeader field="empresa">Empresa</FunilSortHeader>
+                  <FunilSortHeader field="estagio">Estagio</FunilSortHeader>
+                  <FunilSortHeader field="vendedora">Vendedora</FunilSortHeader>
+                  <FunilSortHeader field="valor" align="right">Valor</FunilSortHeader>
+                  <FunilSortHeader field="dataCriacao" align="right">Criado em</FunilSortHeader>
                 </tr>
               </thead>
               <tbody>
@@ -683,11 +747,56 @@ function TabFunil({ data, metrics }) {
                     </td>
                     <td className="py-3 px-3 text-white/50">{deal.vendedora}</td>
                     <td className="py-3 px-3 text-right font-medium text-white/80">{fmtCurrency(deal.valor)}</td>
-                    <td className="py-3 px-3 text-right text-white/30">{deal.dataCriacao}</td>
+                    <td className="py-3 px-3 text-right text-white/30">{deal.dataCriacao ? deal.dataCriacao.split('-').reverse().join('/') : '-'}</td>
                   </tr>
                 ))}
                 {dealsFiltrados.length === 0 && (
                   <tr><td colSpan={5} className="py-8 text-center text-white/20 text-sm">Nenhum deal encontrado com os filtros selecionados</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Deals Perdidos */}
+      <GlassCard>
+        <div className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <SectionTitle icon={XCircle} description="Deals perdidos no periodo filtrado">Deals Perdidos</SectionTitle>
+          </div>
+
+          <div className="flex items-center gap-2 mb-4">
+            <Badge variant="danger">{dealsPerdidosFiltrados.length} deal{dealsPerdidosFiltrados.length !== 1 ? 's' : ''} perdido{dealsPerdidosFiltrados.length !== 1 ? 's' : ''}</Badge>
+            <span className="text-xs text-white/30">|</span>
+            <span className="text-xs text-white/40">{fmtCurrency(dealsPerdidosFiltrados.reduce((s, d) => s + (d.valor || 0), 0))} perdidos</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  <FunilSortHeader field="empresa">Empresa</FunilSortHeader>
+                  <FunilSortHeader field="vendedora">Vendedora</FunilSortHeader>
+                  <FunilSortHeader field="valor" align="right">Valor</FunilSortHeader>
+                  <FunilSortHeader field="dataCriacao" align="right">Data</FunilSortHeader>
+                  <th className="text-left py-3 px-3 text-[11px] uppercase tracking-wider text-white/30 font-medium">Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dealsPerdidosFiltrados.map((deal, i) => (
+                  <tr key={deal.id || i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-3">
+                      <p className="text-white/80 font-medium">{deal.empresa || deal.titulo}</p>
+                    </td>
+                    <td className="py-3 px-3 text-white/50">{deal.vendedora}</td>
+                    <td className="py-3 px-3 text-right font-medium text-rose-400">{fmtCurrency(deal.valor)}</td>
+                    <td className="py-3 px-3 text-right text-white/30">{deal.dataCriacao ? deal.dataCriacao.split('-').reverse().join('/') : '-'}</td>
+                    <td className="py-3 px-3 text-white/40 text-xs">{deal.motivo || '-'}</td>
+                  </tr>
+                ))}
+                {dealsPerdidosFiltrados.length === 0 && (
+                  <tr><td colSpan={5} className="py-8 text-center text-white/20 text-sm">Nenhum deal perdido no periodo</td></tr>
                 )}
               </tbody>
             </table>
@@ -755,12 +864,12 @@ function TabInsideSales({ data, metrics }) {
   const atividades = data.atividades || []
   const totalAtividades = atividades.reduce((s, a) => s + a.ligacoes + a.emails + a.reunioes + a.propostas + a.followups + a.whatsapp, 0)
   const atividadeLabels = [
-    { key: 'ligacoes', label: 'Ligacoes', icon: 'ð', color: '#06b6d4' },
-    { key: 'emails', label: 'Emails', icon: 'ð§', color: '#8b5cf6' },
-    { key: 'whatsapp', label: 'WhatsApp', icon: 'ð¬', color: '#10b981' },
-    { key: 'reunioes', label: 'Reunioes', icon: 'ð¤', color: '#f59e0b' },
-    { key: 'propostas', label: 'Propostas', icon: 'ð', color: '#ec4899' },
-    { key: 'followups', label: 'Follow-ups', icon: 'ð', color: '#ef4444' }
+    { key: 'ligacoes', label: 'Ligacoes', icon: '📞', color: '#06b6d4' },
+    { key: 'emails', label: 'Emails', icon: '📧', color: '#8b5cf6' },
+    { key: 'whatsapp', label: 'WhatsApp', icon: '💬', color: '#10b981' },
+    { key: 'reunioes', label: 'Reunioes', icon: '🤝', color: '#f59e0b' },
+    { key: 'propostas', label: 'Propostas', icon: '📄', color: '#ec4899' },
+    { key: 'followups', label: 'Follow-ups', icon: '🔄', color: '#ef4444' }
   ]
 
   // Chart data para atividades comparativas
@@ -886,7 +995,7 @@ function TabInsideSales({ data, metrics }) {
                     )
                   })}
                 </tr>
-                {/* Won Deals */}
+                {/* Won Deals (volume) */}
                 <tr className="border-b border-white/[0.03]">
                   <td className="py-4 px-3">
                     <p className="text-white/60 font-medium">Deals Ganhos</p>
@@ -948,7 +1057,7 @@ function TabInsideSales({ data, metrics }) {
         </div>
       </GlassCard>
 
-      {/* Motivos de perda — geral + atividades comparativas */}
+      {/* Motivos de perda — geral + por vendedora */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <GlassCard>
           <div className="p-6">
@@ -975,24 +1084,6 @@ function TabInsideSales({ data, metrics }) {
           </div>
         </GlassCard>
 
-        <GlassCard>
-          <div className="p-6">
-            <SectionTitle icon={BarChart3}>Atividades Comparativas</SectionTitle>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={atividadesChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="tipo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  {chartVendedoras.map((v, i) => (
-                    <Bar key={i} dataKey={v.nome} name={v.nome} fill={v.fill} radius={[4, 4, 0, 0]} />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </GlassCard>
       </div>
 
       {/* ============================================= */}
@@ -1007,7 +1098,7 @@ function TabInsideSales({ data, metrics }) {
         {/* Atividades: Agendadas / No Prazo / Fora do Prazo / Atrasadas */}
         {data.atividadesStatus && (
           <div className="space-y-4">
-            {/* KPI Cards â 4 metricas */}
+            {/* KPI Cards — 4 metricas */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KPICard
                 label="Agendadas"
@@ -1184,7 +1275,7 @@ function TabInsideSales({ data, metrics }) {
         {/* Tipo de Tarefa por vendedora (Atividades Comparativas) */}
         <GlassCard>
           <div className="p-6">
-            <SectionTitle icon={BarChart3} description="Volume por tipo de atividade â perfil de cada vendedora">Tipo de Tarefa por Vendedora</SectionTitle>
+            <SectionTitle icon={BarChart3} description="Volume por tipo de atividade — perfil de cada vendedora">Tipo de Tarefa por Vendedora</SectionTitle>
             <div className="h-[280px] mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={atividadesChartData}>
@@ -1201,7 +1292,7 @@ function TabInsideSales({ data, metrics }) {
           </div>
         </GlassCard>
 
-        {/* Ligacoes Realizadas â volume diario 30 dias */}
+        {/* Ligacoes Realizadas — volume diario 30 dias */}
         {data.atividadesDiarias && data.atividadesDiarias.length > 0 && (
           <GlassCard>
             <div className="p-6">
@@ -1465,6 +1556,14 @@ function TabClientes({ data, metrics, fetchWithMes }) {
       aVal = a.closedDealsCount > 0 ? a.wonDealsCount / a.closedDealsCount : 0
       bVal = b.closedDealsCount > 0 ? b.wonDealsCount / b.closedDealsCount : 0
     }
+    if (sortField === 'perdidoCount') {
+      aVal = Math.max(0, (a.closedDealsCount || 0) - (a.wonDealsCount || 0))
+      bVal = Math.max(0, (b.closedDealsCount || 0) - (b.wonDealsCount || 0))
+    }
+    if (sortField === 'totalDealsCount') {
+      aVal = (a.openDealsCount || 0) + (a.closedDealsCount || 0)
+      bVal = (b.openDealsCount || 0) + (b.closedDealsCount || 0)
+    }
     if (typeof aVal === 'string') {
       return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
     }
@@ -1473,6 +1572,12 @@ function TabClientes({ data, metrics, fetchWithMes }) {
 
   const totalVendidoMes = clientesFiltrados.reduce((s, c) => s + (c.vendidoMes || 0), 0)
   const totalWon = clientesFiltrados.reduce((s, c) => s + (c.wonDealsCount || 0), 0)
+  const totalLost = clientesFiltrados.reduce((s, c) => s + Math.max(0, (c.closedDealsCount || 0) - (c.wonDealsCount || 0)), 0)
+  const totalOpen = clientesFiltrados.reduce((s, c) => s + (c.openDealsCount || 0), 0)
+  const totalOport = clientesFiltrados.reduce((s, c) => s + (c.openDealsCount || 0) + (c.closedDealsCount || 0), 0)
+  const totalClosed = clientesFiltrados.reduce((s, c) => s + (c.closedDealsCount || 0), 0)
+  const totalTicketMedio = totalWon > 0 ? totalVendidoMes / totalWon : 0
+  const totalConversao = totalClosed > 0 ? totalWon / totalClosed : 0
   const ativos = clientes.filter(c => c.termometro === 'ATIVO').length
   const risco = clientes.filter(c => c.termometro === 'RISCO' || c.termometro === 'ATENCAO').length
 
@@ -1533,43 +1638,62 @@ function TabClientes({ data, metrics, fetchWithMes }) {
               <thead>
                 <tr className="border-b border-white/[0.06]">
                   <SortHeader field="cliente">Cliente</SortHeader>
-                  <SortHeader field="termometro" align="center">Status</SortHeader>
-                  <SortHeader field="perfil">Perfil</SortHeader>
-                  <SortHeader field="responsavel">Proprietario</SortHeader>
-                  <SortHeader field="openDealsCount" align="center">Oportunidades</SortHeader>
-                  <SortHeader field="wonDealsCount" align="right">Won Deals</SortHeader>
-                  <SortHeader field="vendidoMes" align="right">Vendido Mes</SortHeader>
+                  <SortHeader field="totalDealsCount" align="right">Oportunidades</SortHeader>
+                  <SortHeader field="wonDealsCount" align="right">Ganho</SortHeader>
+                  <SortHeader field="perdidoCount" align="right">Perdido</SortHeader>
+                  <SortHeader field="openDealsCount" align="right">Em Aberto</SortHeader>
                   <SortHeader field="ticketMedio" align="right">Ticket Medio</SortHeader>
                   <SortHeader field="taxaConversao" align="right">Conversao</SortHeader>
+                  <SortHeader field="vendidoMes" align="right">Vendido Mes</SortHeader>
                 </tr>
               </thead>
               <tbody>
-                {clientesFiltrados.map((c, i) => (
-                  <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                    <td className="py-3 px-3 text-white/80 font-medium">{c.cliente}</td>
-                    <td className="py-3 px-3 text-center">
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${termometroColors[c.termometro] || '#666'}20`, color: termometroColors[c.termometro] || '#666' }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: termometroColors[c.termometro] || '#666' }} />
-                        {c.termometro}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-white/50 text-xs">{c.perfil}</td>
-                    <td className="py-3 px-3 text-white/50">{(c.responsavel || '').split(' ').slice(0,2).join(' ')}</td>
-                    <td className="py-3 px-3 text-center text-cyan-400 font-medium">{c.openDealsCount}</td>
-                    <td className="py-3 px-3 text-right font-medium text-emerald-400">{c.wonDealsCount}</td>
-                    <td className="py-3 px-3 text-right font-medium text-white/80">{c.vendidoMes > 0 ? fmtCurrency(c.vendidoMes) : '-'}</td>
-                    <td className="py-3 px-3 text-right text-white/60">{c.wonDealsCount > 0 ? fmtCurrencyShort(c.vendidoMes / c.wonDealsCount) : '-'}</td>
-                    <td className="py-3 px-3 text-right">
-                      <span className={`font-medium ${c.closedDealsCount > 0 ? (c.wonDealsCount / c.closedDealsCount * 100 >= 20 ? 'text-emerald-400' : c.wonDealsCount / c.closedDealsCount * 100 >= 10 ? 'text-amber-400' : 'text-rose-400') : 'text-white/30'}`}>
-                        {c.closedDealsCount > 0 ? fmtPct(c.wonDealsCount / c.closedDealsCount * 100, 1) : '-'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {clientesFiltrados.map((c, i) => {
+                  const perdido = Math.max(0, (c.closedDealsCount || 0) - (c.wonDealsCount || 0))
+                  const oport = (c.openDealsCount || 0) + (c.closedDealsCount || 0)
+                  const tkMedio = c.wonDealsCount > 0 ? c.vendidoMes / c.wonDealsCount : 0
+                  const conv = c.closedDealsCount > 0 ? c.wonDealsCount / c.closedDealsCount : null
+                  return (
+                    <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3 px-3 text-white/80 font-medium">{c.cliente}</td>
+                      <td className="py-3 px-3 text-right text-white/60">{oport}</td>
+                      <td className="py-3 px-3 text-right font-medium text-emerald-400">{c.wonDealsCount || 0}</td>
+                      <td className="py-3 px-3 text-right font-medium text-rose-400">{perdido}</td>
+                      <td className="py-3 px-3 text-right text-cyan-400 font-medium">{c.openDealsCount || 0}</td>
+                      <td className="py-3 px-3 text-right text-white/60">{tkMedio > 0 ? fmtCurrencyShort(tkMedio) : '-'}</td>
+                      <td className="py-3 px-3 text-right">
+                        {conv !== null ? (
+                          <span className={`font-medium ${conv * 100 >= 20 ? 'text-emerald-400' : conv * 100 >= 10 ? 'text-amber-400' : 'text-rose-400'}`}>
+                            {fmtPct(conv * 100, 1)}
+                          </span>
+                        ) : <span className="text-white/30">-</span>}
+                      </td>
+                      <td className="py-3 px-3 text-right font-medium text-white/80">{c.vendidoMes > 0 ? fmtCurrency(c.vendidoMes) : '-'}</td>
+                    </tr>
+                  )
+                })}
                 {clientesFiltrados.length === 0 && (
-                  <tr><td colSpan={9} className="py-8 text-center text-white/20 text-sm">Nenhum cliente encontrado</td></tr>
+                  <tr><td colSpan={8} className="py-8 text-center text-white/20 text-sm">Nenhum cliente encontrado</td></tr>
                 )}
               </tbody>
+              {clientesFiltrados.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-white/[0.10] bg-white/[0.02]">
+                    <td className="py-3 px-3 text-[11px] uppercase tracking-wider text-white/40 font-semibold">TOTAL</td>
+                    <td className="py-3 px-3 text-right font-semibold text-white/60">{totalOport}</td>
+                    <td className="py-3 px-3 text-right font-semibold text-emerald-400">{totalWon}</td>
+                    <td className="py-3 px-3 text-right font-semibold text-rose-400">{totalLost}</td>
+                    <td className="py-3 px-3 text-right font-semibold text-cyan-400">{totalOpen}</td>
+                    <td className="py-3 px-3 text-right font-semibold text-white/60">{totalTicketMedio > 0 ? fmtCurrencyShort(totalTicketMedio) : '-'}</td>
+                    <td className="py-3 px-3 text-right font-semibold">
+                      <span className={totalConversao * 100 >= 20 ? 'text-emerald-400' : totalConversao * 100 >= 10 ? 'text-amber-400' : 'text-rose-400'}>
+                        {totalClosed > 0 ? fmtPct(totalConversao * 100, 1) : '-'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-right font-semibold text-white/80">{fmtCurrency(totalVendidoMes)}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
@@ -1620,7 +1744,7 @@ function TabProjecao({ data, metrics }) {
     { nome: 'Otimista', valor: projecaoOtimista, cor: '#10b981', desc: 'Ritmo acelera 15%' },
   ]
 
-  // Chart 1: Pace Mensal â acumulado diario vs meta
+  // Chart 1: Pace Mensal — acumulado diario vs meta
   const daysInMonth = metrics.diasNoMes
   const milestones = [1, 5, 10, 15, 20, 25, daysInMonth].filter((v, i, arr) => arr.indexOf(v) === i)
   const paceMensalData = milestones.map(d => ({
@@ -1630,7 +1754,7 @@ function TabProjecao({ data, metrics }) {
     Gabrieli: Math.round(sellerStats.Gabrieli.dailyRate * d)
   }))
 
-  // Chart 2: Pace Semanal â acumulado no dia da semana vs meta semanal
+  // Chart 2: Pace Semanal — acumulado no dia da semana vs meta semanal
   const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex']
   const paceSemanalData = weekDays.map((dia, i) => ({
     dia,
@@ -1717,7 +1841,7 @@ function TabProjecao({ data, metrics }) {
         </div>
       </GlassCard>
 
-      {/* 4 Charts de Projecao â 2x2 grid */}
+      {/* 4 Charts de Projecao — 2x2 grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart 1: Pace Mensal */}
         <GlassCard>
