@@ -697,7 +697,7 @@ async function fetchFlashFTLTasks(mesFiltro) {
   const allTasks = []
   let page = 0
 
-  while (true) {
+  while (page < 3) {
     const url = new URL(`https://api.clickup.com/api/v2/list/${CLICKUP_FLASH_FTL_LIST}/task`)
     url.searchParams.set('page', String(page))
     url.searchParams.set('limit', '100')
@@ -804,9 +804,9 @@ function getMetas() {
 
 // ========== MAIN HANDLER ==========
 
-// Vercel: aumenta timeout para 30s (plano hobby suporta ate 60s em funcoes)
+// Vercel: aumenta timeout para 60s (plano pro suporta ate 60s em funcoes)
 export const config = {
-  maxDuration: 30
+  maxDuration: 60
 }
 
 export default async function handler(req, res) {
