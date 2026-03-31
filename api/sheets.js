@@ -93,7 +93,7 @@ async function pipedriveFetch(endpoint, params = {}) {
   return res.json()
 }
 
-async function fetchAllPages(endpoint, params = {}, filterFn = null, maxPages = 50) {
+async function fetchAllPages(endpoint, params = {}, filterFn = null, maxPages = 10) {
   let allData = []
   let start = 0
   const limit = 100
@@ -125,17 +125,18 @@ async function fetchOpenDeals() {
 }
 
 async function fetchWonDeals(sinceDate) {
-  // Busca won deals filtrados por pipeline 7, max 5 paginas (500 deals)
-  // Ordenado por update_time DESC para pegar os mais recentes primeiro
+  // Busca won deals filtrados por pipeline 7 e data minima (reduz paginacao), max 2 paginas
   const params = { status: 'won', user_id: '0', sort: 'update_time DESC' }
-  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 5)
+  if (sinceDate) params.start_date = sinceDate
+  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 2)
   return deals
 }
 
 async function fetchLostDeals(sinceDate) {
-  // Busca lost deals filtrados por pipeline 7, max 5 paginas (500 deals)
+  // Busca lost deals filtrados por pipeline 7 e data minima (reduz paginacao), max 2 paginas
   const params = { status: 'lost', user_id: '0', sort: 'update_time DESC' }
-  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 5)
+  if (sinceDate) params.start_date = sinceDate
+  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 2)
   return deals
 }
 
