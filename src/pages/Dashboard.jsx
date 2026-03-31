@@ -1134,32 +1134,34 @@ function TabInsideSales({ data, metrics }) {
               />
             </div>
 
-            {/* Horizontal bar per vendedora */}
+            {/* Vertical grouped bar chart por vendedora */}
             <GlassCard>
               <div className="p-6">
                 <SectionTitle icon={BarChart3} description="Agendadas vs Executadas vs Atrasadas por vendedora">Disciplina de Atividades</SectionTitle>
-                <div className="space-y-4 mt-4">
-                  {(data.atividadesStatus.porVendedora || []).map((v, i) => {
-                    const maxVal = Math.max(v.agendadas, 1)
-                    return (
-                      <div key={i} className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-white/70 font-medium">{v.vendedora}</span>
-                          <span className="text-[10px] text-white/30">{v.executadas}/{v.agendadas} executadas | {v.atrasadas} atrasadas</span>
-                        </div>
-                        <div className="flex gap-1 h-5">
-                          <div className="rounded-l" style={{ width: `${(v.executadas / maxVal) * 100}%`, background: '#10b981', minWidth: v.executadas > 0 ? '4px' : '0' }} title={`Executadas: ${v.executadas}`} />
-                          <div style={{ width: `${((v.agendadas - v.executadas) / maxVal) * 100}%`, background: '#3b82f6', minWidth: (v.agendadas - v.executadas) > 0 ? '4px' : '0' }} title={`Pendentes: ${v.agendadas - v.executadas}`} />
-                          <div className="rounded-r" style={{ width: `${(v.atrasadas / maxVal) * 100}%`, background: '#ef4444', minWidth: v.atrasadas > 0 ? '4px' : '0' }} title={`Atrasadas: ${v.atrasadas}`} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                  <div className="flex gap-4 mt-2 text-[10px] text-white/30">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Executadas</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Pendentes</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" /> Atrasadas</span>
-                  </div>
+                <div className="h-[240px] mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={(data.atividadesStatus.porVendedora || []).map(v => ({
+                        nome: v.vendedora.split(' ')[0],
+                        Agendadas: v.agendadas,
+                        Executadas: v.executadas,
+                        Pendentes: Math.max(0, v.agendadas - v.executadas),
+                        Atrasadas: v.atrasadas
+                      }))}
+                      barGap={3}
+                      barCategoryGap="35%"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis dataKey="nome" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 500 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ paddingTop: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }} />
+                      <Bar dataKey="Agendadas" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Executadas" fill="#10b981" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Pendentes" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Atrasadas" fill="#ef4444" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </GlassCard>
@@ -1638,6 +1640,7 @@ function TabClientes({ data, metrics, fetchWithMes }) {
               <thead>
                 <tr className="border-b border-white/[0.06]">
                   <SortHeader field="cliente">Cliente</SortHeader>
+                  <SortHeader field="termometro" align="center">Status</SortHeader>
                   <SortHeader field="totalDealsCount" align="right">Oportunidades</SortHeader>
                   <SortHeader field="wonDealsCount" align="right">Ganho</SortHeader>
                   <SortHeader field="perdidoCount" align="right">Perdido</SortHeader>
@@ -1653,9 +1656,16 @@ function TabClientes({ data, metrics, fetchWithMes }) {
                   const oport = (c.openDealsCount || 0) + (c.closedDealsCount || 0)
                   const tkMedio = c.wonDealsCount > 0 ? c.vendidoMes / c.wonDealsCount : 0
                   const conv = c.closedDealsCount > 0 ? c.wonDealsCount / c.closedDealsCount : null
+                  const tColor = termometroColors[c.termometro] || '#6b7280'
                   return (
                     <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                       <td className="py-3 px-3 text-white/80 font-medium">{c.cliente}</td>
+                      <td className="py-3 px-3 text-center">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide" style={{ background: `${tColor}18`, color: tColor, border: `1px solid ${tColor}40` }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: tColor }} />
+                          {c.termometro || 'N/A'}
+                        </span>
+                      </td>
                       <td className="py-3 px-3 text-right text-white/60">{oport}</td>
                       <td className="py-3 px-3 text-right font-medium text-emerald-400">{c.wonDealsCount || 0}</td>
                       <td className="py-3 px-3 text-right font-medium text-rose-400">{perdido}</td>
@@ -1680,6 +1690,7 @@ function TabClientes({ data, metrics, fetchWithMes }) {
                 <tfoot>
                   <tr className="border-t-2 border-white/[0.10] bg-white/[0.02]">
                     <td className="py-3 px-3 text-[11px] uppercase tracking-wider text-white/40 font-semibold">TOTAL</td>
+                    <td className="py-3 px-3 text-center text-[10px] text-white/20">{ativos} ativ.</td>
                     <td className="py-3 px-3 text-right font-semibold text-white/60">{totalOport}</td>
                     <td className="py-3 px-3 text-right font-semibold text-emerald-400">{totalWon}</td>
                     <td className="py-3 px-3 text-right font-semibold text-rose-400">{totalLost}</td>

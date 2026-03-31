@@ -1,5 +1,5 @@
-// Vercel Serverless Function â GET /api/sheets
-// Busca dados REAIS do Pipedrive (Pipeline 7 â Funil Oportunidade) e retorna JSON formatado
+// Vercel Serverless Function — GET /api/sheets
+// Busca dados REAIS do Pipedrive (Pipeline 7 — Funil Oportunidade) e retorna JSON formatado
 // Fallback para dados demo se PIPEDRIVE_API_KEY nao estiver configurada
 
 const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY
@@ -30,7 +30,7 @@ const STAGES = {
 const FUNIL_STAGES = [54, 55, 56]
 const FUNIL_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'Proposta Aprovada']
 
-// Pipedrive Organizations â Clientes Ativos
+// Pipedrive Organizations — Clientes Ativos
 const CLIENTES_ATIVOS_FILTER_ID = 31374
 const ORG_STATUS_TERMOMETRO_KEY = '4abea383919e4b58f5896ed5cf571d89396d1bc5'
 const ORG_PERFIL_COMPRA_KEY = 'e52751b2ca4cdbe74f9f473e158d2f8689c7e66f'
@@ -64,7 +64,7 @@ const ACTIVITY_MAP = {
   'tentativa_agendamento_de_r': 'ligacoes'
 }
 
-// Normaliza nome de vendedora para evitar duplicidade por acentuacao ou variante de ID
+// Normaliza nome de vendedora para evitar duplicidade por acentuacao ou variante de ID no Pipedrive
 function normalizeVendedoraName(name) {
   if (!name) return name
   const s = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
@@ -73,7 +73,7 @@ function normalizeVendedoraName(name) {
   return name
 }
 
-// Extrai user_id de atividade (Pipedrive pode retornar numero ou objeto)
+// Extrai user_id de atividade (Pipedrive retorna numero ou objeto dependendo do endpoint)
 function getActivityUserId(activity) {
   if (typeof activity.user_id === 'object' && activity.user_id?.id) return activity.user_id.id
   return activity.user_id
@@ -93,7 +93,7 @@ async function pipedriveFetch(endpoint, params = {}) {
   return res.json()
 }
 
-async function fetchAllPages(endpoint, params = {}, filterFn = null, maxPages = 10) {
+async function fetchAllPages(endpoint, params = {}, filterFn = null, maxPages = 50) {
   let allData = []
   let start = 0
   const limit = 100
@@ -125,23 +125,22 @@ async function fetchOpenDeals() {
 }
 
 async function fetchWonDeals(sinceDate) {
-  // Busca won deals filtrados por pipeline 7 e data minima (reduz paginacao)
+  // Busca won deals filtrados por pipeline 7, max 5 paginas (500 deals)
+  // Ordenado por update_time DESC para pegar os mais recentes primeiro
   const params = { status: 'won', user_id: '0', sort: 'update_time DESC' }
-  if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 2)
+  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 5)
   return deals
 }
 
 async function fetchLostDeals(sinceDate) {
-  // Busca lost deals filtrados por pipeline 7 e data minima (reduz paginacao)
+  // Busca lost deals filtrados por pipeline 7, max 5 paginas (500 deals)
   const params = { status: 'lost', user_id: '0', sort: 'update_time DESC' }
-  if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 2)
+  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 5)
   return deals
 }
 
 async function fetchActivities(startDate, endDate) {
-  // Busca atividades REALIZADAS no periodo de TODOS os usuarios, max 5 paginas
+  // Busca atividades REALIZADAS no periodo de TODOS os usuarios, max 5 paginas (500 atividades)
   const activities = await fetchAllPages('activities', {
     user_id: '0',
     start_date: startDate,
@@ -152,7 +151,7 @@ async function fetchActivities(startDate, endDate) {
 }
 
 async function fetchPendingActivities(startDate, endDate) {
-  // Busca atividades PENDENTES de TODOS os usuarios
+  // Busca atividades PENDENTES (done=0) no periodo de TODOS os usuarios
   const activities = await fetchAllPages('activities', {
     user_id: '0',
     start_date: startDate,
@@ -163,24 +162,35 @@ async function fetchPendingActivities(startDate, endDate) {
 }
 
 async function fetchActivities30Days() {
+  // Busca atividades realizadas nos ultimos 30 dias de TODOS os usuarios
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)
-  const startStr = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`
-  const endStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+  const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`
+  const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
   const activities = await fetchAllPages('activities', {
-    user_id: '0', start_date: startStr, end_date: endStr, done: '1'
+    user_id: '0',
+    start_date: startStr,
+    end_date: endStr,
+    done: '1'
   }, null, 10)
   return activities
 }
 
 async function fetchOverdueActivities() {
+  // Busca atividades atrasadas (done=0, due_date ja passou) de TODOS os usuarios
+  // Usa range amplo: 90 dias atras ate ontem
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
-  const startStr = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-01`
-  const endStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`
+  const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-01`
+  const endStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`
+
   const activities = await fetchAllPages('activities', {
-    user_id: '0', start_date: startStr, end_date: endStr, done: '0'
+    user_id: '0',
+    start_date: startStr,
+    end_date: endStr,
+    done: '0'
   }, null, 5)
   return activities
 }
@@ -212,7 +222,7 @@ function processOpenDeals(deals) {
   const now = new Date()
   return deals.map(d => {
     const addTime = d.add_time ? d.add_time.substring(0, 10) : ''
-    const diasParado = addTime ? Math.floor((now - new Date(addTime)) / (1000*60*60*24)) : 0
+    const diasParado = addTime ? Math.floor((now - new Date(addTime)) / (1000 * 60 * 60 * 24)) : 0
     return {
       id: String(d.id),
       titulo: d.title || '',
@@ -234,9 +244,10 @@ function processWonDeals(deals, mesAtual) {
     const mes = getMonthKey(d.won_time) || getMonthKey(d.close_time) || getMonthKey(d.update_time) || mesAtual
     const addTime = d.add_time ? d.add_time.substring(0, 10) : ''
     const wonTime = (d.won_time || d.close_time || d.update_time || '').substring(0, 10)
+    // Ciclo em dias = diferenca entre won_time e add_time
     let cicloDias = 0
     if (addTime && wonTime) {
-      cicloDias = Math.max(1, Math.floor((new Date(wonTime) - new Date(addTime)) / (1000*60*60*24)))
+      cicloDias = Math.max(1, Math.floor((new Date(wonTime) - new Date(addTime)) / (1000 * 60 * 60 * 24)))
     }
     return {
       id: String(d.id),
@@ -293,7 +304,7 @@ function buildPerformance(wonDeals, mesAtual) {
   })
   wonMesAtual.forEach(d => {
     const v = normalizeVendedoraName(d.vendedora)
-    if (!porVendedora[v]) return // ignora vendedoras nao mapeadas
+    if (!porVendedora[v]) return // ignora vendedoras nao mapeadas (Laurence, desconhecidos)
     porVendedora[v].count++
     porVendedora[v].valor += d.valor
   })
@@ -359,7 +370,7 @@ function buildAtividades(activities) {
   activities.forEach(a => {
     const userId = getActivityUserId(a)
     const userName = VENDEDORAS[userId]
-    if (!userName) return // Ignora users que nao sao vendedoras
+    if (!userName) return // Ignora users que nao sao vendedoras (exclui Laurence)
 
     if (!byUser[userName]) {
       byUser[userName] = { vendedora: userName, ligacoes: 0, emails: 0, whatsapp: 0, reunioes: 0, propostas: 0, followups: 0 }
@@ -378,8 +389,8 @@ async function fetchClientesAtivos() {
   return orgs
 }
 
-function processClientesAtivos(orgs, wonDeals, mesFiltro) {
-  // Calcula valor vendido por org no mes filtrado
+function processClientesAtivos(orgs, wonDeals, lostDeals, mesFiltro) {
+  // Calcula valor e contagem ganha por org no mes filtrado
   const wonByOrg = {}
   const wonFiltered = mesFiltro ? wonDeals.filter(d => d.mes === mesFiltro) : wonDeals
   wonFiltered.forEach(d => {
@@ -390,12 +401,24 @@ function processClientesAtivos(orgs, wonDeals, mesFiltro) {
     wonByOrg[orgName].count++
   })
 
+  // Calcula perdidos por org no mes filtrado
+  const lostByOrg = {}
+  const lostFiltered = mesFiltro ? lostDeals.filter(d => d.mes === mesFiltro) : lostDeals
+  lostFiltered.forEach(d => {
+    const orgName = d.empresa
+    if (!orgName) return
+    lostByOrg[orgName] = (lostByOrg[orgName] || 0) + 1
+  })
+
   return orgs.map(o => {
     const nome = o.name || ''
     const ownerName = o.owner_name || (typeof o.owner_id === 'object' ? o.owner_id?.name : '') || 'N/A'
     const termometro = STATUS_TERMOMETRO_MAP[String(o[ORG_STATUS_TERMOMETRO_KEY])] || 'N/A'
     const perfil = PERFIL_COMPRA_MAP[String(o[ORG_PERFIL_COMPRA_KEY])] || 'N/A'
     const wonData = wonByOrg[nome] || { valor: 0, count: 0 }
+    const perdidoMes = lostByOrg[nome] || 0
+    // closedDealsCount = ganho + perdido no mes (para calculo de conversao mensal)
+    const closedDealsCount = wonData.count + perdidoMes
 
     return {
       cliente: nome,
@@ -403,48 +426,55 @@ function processClientesAtivos(orgs, wonDeals, mesFiltro) {
       perfil,
       responsavel: ownerName,
       pessoas: o.people_count || 0,
-      wonDealsCount: o.won_deals_count || 0,
-      closedDealsCount: o.closed_deals_count || 0,
-      openDealsCount: o.open_deals_count || 0,
+      wonDealsCount: wonData.count,       // ganhos no mes filtrado
+      closedDealsCount,                   // fechados (won+lost) no mes filtrado
+      openDealsCount: o.open_deals_count || 0, // em aberto atual
       vendidoMes: wonData.valor,
       dealsGanhosMes: wonData.count
     }
   }).sort((a, b) => b.wonDealsCount - a.wonDealsCount)
 }
 
-// ========== QUALITY INDICATORS ==========
+// ========== QUALITY INDICATORS PROCESSING ==========
 
 function buildAtividadesStatus(doneActivities, pendingActivities, overdueActivities) {
+  // Agendadas = done + pending no periodo
+  // Executadas = done no periodo (noPrazo = feita ate due_date, foraDoPrazo = feita apos due_date)
+  // Atrasadas = pending com due_date < hoje
   const byVendedora = {}
   Object.values(VENDEDORAS).forEach(nome => {
     byVendedora[nome] = { vendedora: nome, agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 }
   })
 
+  // Executadas (done=1 no periodo)
   doneActivities.forEach(a => {
     const userName = VENDEDORAS[getActivityUserId(a)]
     if (!userName) return
     if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 }
     byVendedora[userName].executadas++
     byVendedora[userName].agendadas++
+    // Verifica se foi executada no prazo ou fora do prazo
     const doneDate = (a.done_time || '').substring(0, 10)
     const dueDate = a.due_date || ''
     if (doneDate && dueDate) {
       if (doneDate <= dueDate) byVendedora[userName].noPrazo++
       else byVendedora[userName].foraDoPrazo++
     } else {
-      byVendedora[userName].noPrazo++
+      byVendedora[userName].noPrazo++ // sem due_date = considera no prazo
     }
   })
 
+  // Pendentes no periodo (done=0, due_date no mes filtro)
   pendingActivities.forEach(a => {
-    const userName = VENDEDORAS[a.user_id]
+    const userName = VENDEDORAS[getActivityUserId(a)]
     if (!userName) return
     if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 }
     byVendedora[userName].agendadas++
   })
 
+  // Atrasadas (done=0, due_date < hoje)
   overdueActivities.forEach(a => {
-    const userName = VENDEDORAS[a.user_id]
+    const userName = VENDEDORAS[getActivityUserId(a)]
     if (!userName) return
     if (!byVendedora[userName]) byVendedora[userName] = { vendedora: userName, agendadas: 0, executadas: 0, noPrazo: 0, foraDoPrazo: 0, atrasadas: 0 }
     byVendedora[userName].atrasadas++
@@ -463,6 +493,7 @@ function buildAtividadesStatus(doneActivities, pendingActivities, overdueActivit
 }
 
 function buildDealsOrfaos(openDeals) {
+  // Deals abertos SEM proxima atividade agendada
   const orfaos = openDeals.filter(d => !d.nextActivityDate && d.estagio !== 'BUGS')
   const byVendedora = {}
   Object.values(VENDEDORAS).forEach(nome => { byVendedora[nome] = [] })
@@ -478,6 +509,7 @@ function buildDealsOrfaos(openDeals) {
 }
 
 function buildAtividadesDiarias(activities) {
+  // Agrupa atividades por dia e vendedora (ultimos 30 dias)
   const byDay = {}
   activities.forEach(a => {
     const userName = VENDEDORAS[a.user_id]
@@ -491,12 +523,15 @@ function buildAtividadesDiarias(activities) {
     if (cat === 'ligacoes') byDay[dia][userName].ligacoes++
   })
 
+  // Converter para array ordenado por data
   return Object.entries(byDay)
     .map(([dia, vendedoras]) => ({ dia, ...vendedoras }))
     .sort((a, b) => a.dia.localeCompare(b.dia))
 }
 
 function buildSalesVelocity(wonDeals, lostDeals, mesAtual) {
+  // Sales Velocity = (deals x valor_medio x conversao) / ciclo_medio_dias
+  // Calcula geral e por vendedora
   const wonMes = wonDeals.filter(d => d.mes === mesAtual)
   const lostMes = lostDeals.filter(d => d.mes === mesAtual)
 
@@ -519,6 +554,7 @@ function buildSalesVelocity(wonDeals, lostDeals, mesAtual) {
 
   const geral = calcVelocity(wonMes, lostMes)
 
+  // Por vendedora
   const porVendedora = {}
   Object.values(VENDEDORAS).forEach(nome => {
     const wonV = wonMes.filter(d => d.vendedora === nome)
@@ -530,6 +566,7 @@ function buildSalesVelocity(wonDeals, lostDeals, mesAtual) {
 }
 
 function buildFollowupFrequency(doneActivities, wonDeals, lostDeals, mesAtual) {
+  // Conta atividades por deal_id para deals fechados no mes
   const actsByDeal = {}
   doneActivities.forEach(a => {
     const dealId = a.deal_id
@@ -547,6 +584,7 @@ function buildFollowupFrequency(doneActivities, wonDeals, lostDeals, mesAtual) {
   const avgWon = wonFollowups.length > 0 ? wonFollowups.reduce((s, v) => s + v, 0) / wonFollowups.length : 0
   const avgLost = lostFollowups.length > 0 ? lostFollowups.reduce((s, v) => s + v, 0) / lostFollowups.length : 0
 
+  // Distribuicao por faixa
   function countByRange(arr) {
     return {
       zero: arr.filter(v => v === 0).length,
@@ -566,6 +604,8 @@ function buildFollowupFrequency(doneActivities, wonDeals, lostDeals, mesAtual) {
 }
 
 function buildTempoResposta(doneActivities, openDeals, wonDeals, lostDeals) {
+  // Tempo entre add_time do deal e primeira atividade registrada
+  // Agrupa atividades por deal_id e pega a mais antiga
   const firstActivityByDeal = {}
   doneActivities.forEach(a => {
     const dealId = a.deal_id
@@ -577,6 +617,7 @@ function buildTempoResposta(doneActivities, openDeals, wonDeals, lostDeals) {
     }
   })
 
+  // Calcula tempo de resposta para deals recentes (open + won + lost do mes)
   const allDeals = [...openDeals, ...wonDeals, ...lostDeals]
   const respostas = []
 
@@ -587,7 +628,7 @@ function buildTempoResposta(doneActivities, openDeals, wonDeals, lostDeals) {
     const actDate = new Date(firstAct)
     const horasResposta = Math.max(0, (actDate - addDate) / (1000 * 60 * 60))
 
-    if (horasResposta < 720) {
+    if (horasResposta < 720) { // Ignora outliers > 30 dias
       respostas.push({
         dealId: d.id,
         empresa: d.empresa,
@@ -598,10 +639,12 @@ function buildTempoResposta(doneActivities, openDeals, wonDeals, lostDeals) {
     }
   })
 
+  // Media geral
   const media = respostas.length > 0
     ? respostas.reduce((s, r) => s + r.horasResposta, 0) / respostas.length
     : 0
 
+  // Distribuicao por faixa
   const distribuicao = {
     ate2h: respostas.filter(r => r.horasResposta <= 2).length,
     de2a4h: respostas.filter(r => r.horasResposta > 2 && r.horasResposta <= 4).length,
@@ -609,6 +652,7 @@ function buildTempoResposta(doneActivities, openDeals, wonDeals, lostDeals) {
     mais8h: respostas.filter(r => r.horasResposta > 8).length
   }
 
+  // Por vendedora
   const porVendedora = {}
   Object.values(VENDEDORAS).forEach(nome => {
     const resp = respostas.filter(r => r.vendedora === nome)
@@ -617,6 +661,7 @@ function buildTempoResposta(doneActivities, openDeals, wonDeals, lostDeals) {
       : 0
   })
 
+  // Ultimos 10 deals (mais recentes)
   const ultimos10 = respostas
     .sort((a, b) => b.dealId - a.dealId)
     .slice(0, 10)
@@ -630,7 +675,7 @@ function buildTempoResposta(doneActivities, openDeals, wonDeals, lostDeals) {
   }
 }
 
-// ========== CLICKUP API (Flash FTL â Faturado) ==========
+// ========== CLICKUP API (Flash FTL — Faturado) ==========
 
 async function clickupFetch(endpoint, params = {}) {
   const url = new URL(`https://api.clickup.com/api/v2/${endpoint}`)
@@ -651,7 +696,7 @@ async function fetchFlashFTLTasks(mesFiltro) {
   const allTasks = []
   let page = 0
 
-  while (page < 3) {
+  while (true) {
     const url = new URL(`https://api.clickup.com/api/v2/list/${CLICKUP_FLASH_FTL_LIST}/task`)
     url.searchParams.set('page', String(page))
     url.searchParams.set('limit', '100')
@@ -760,7 +805,7 @@ function getMetas() {
 
 // Vercel: aumenta timeout para 30s (plano hobby suporta ate 60s em funcoes)
 export const config = {
-  maxDuration: 60
+  maxDuration: 30
 }
 
 export default async function handler(req, res) {
@@ -794,12 +839,11 @@ export default async function handler(req, res) {
     const sinceDate = new Date(now.getFullYear(), now.getMonth() - 6, 1)
     const sinceDateStr = `${sinceDate.getFullYear()}-${String(sinceDate.getMonth() + 1).padStart(2, '0')}-01`
 
-    // Busca TODOS os dados em paralelo (6 chamadas simultaneas)
+    // Busca TODOS os dados em paralelo (10 chamadas simultaneas)
     const clickupPromise = CLICKUP_API_TOKEN
       ? fetchFlashFTLTasks(mesFiltro).catch(err => { console.error('ClickUp error:', err); return [] })
       : Promise.resolve([])
 
-    console.log('Starting parallel fetch at', Date.now())
     const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs, rawPending, rawActivities30d, rawOverdue] = await Promise.all([
       fetchOpenDeals(),
       fetchWonDeals(sinceDateStr),
@@ -807,20 +851,20 @@ export default async function handler(req, res) {
       fetchActivities(startOfFilterMonth, endOfFilterMonth),
       clickupPromise,
       fetchClientesAtivos().catch(err => { console.error('Orgs error:', err); return [] }),
-      fetchPendingActivities(startOfFilterMonth, endOfFilterMonth),
-      fetchActivities30Days(),
-      fetchOverdueActivities()
+      fetchPendingActivities(startOfFilterMonth, endOfFilterMonth).catch(err => { console.error('Pending activities error:', err); return [] }),
+      fetchActivities30Days().catch(err => { console.error('Activities 30d error:', err); return [] }),
+      fetchOverdueActivities().catch(err => { console.error('Overdue activities error:', err); return [] })
     ])
 
-    // Processa dados
+    // Processa dados base
     const openDeals = processOpenDeals(rawOpen)
     const wonDeals = processWonDeals(rawWon, mesAtual)
     const lostDeals = processLostDeals(rawLost, mesAtual)
     const atividades = buildAtividades(rawActivities)
-    const clientesAtivos = processClientesAtivos(rawOrgs, wonDeals, mesFiltro)
+    const clientesAtivos = processClientesAtivos(rawOrgs, wonDeals, lostDeals, mesFiltro)
     const { faturado: faturadoData, closerFTL: closerFTLData } = processFlashFTLData(rawFlashFTL)
 
-    // Quality indicators
+    // Processa indicadores de qualidade
     const atividadesStatus = buildAtividadesStatus(rawActivities, rawPending, rawOverdue)
     const dealsOrfaos = buildDealsOrfaos(openDeals)
     const atividadesDiarias = buildAtividadesDiarias(rawActivities30d)
@@ -853,6 +897,7 @@ export default async function handler(req, res) {
       clientesAtivos,
       faturado: faturadoData,
       closerFTL: closerFTLData,
+      // Indicadores de qualidade
       atividadesStatus,
       dealsOrfaos,
       atividadesDiarias,
@@ -975,48 +1020,55 @@ function getDemoData() {
       ],
       lostTasks: []
     },
+    // Indicadores de qualidade (demo)
     atividadesStatus: {
       porVendedora: [
-        { vendedora: 'Tayna Kazial', agendadas: 45, executadas: 38, atrasadas: 3 },
-        { vendedora: 'Gabrieli Muneretto', agendadas: 32, executadas: 25, atrasadas: 5 }
+        { vendedora: 'Tayna Kazial', agendadas: 42, executadas: 35, atrasadas: 3 },
+        { vendedora: 'Gabrieli Muneretto', agendadas: 38, executadas: 30, atrasadas: 5 }
       ],
-      totais: { agendadas: 77, executadas: 63, atrasadas: 8 }
+      totais: { agendadas: 80, executadas: 65, atrasadas: 8 }
     },
     dealsOrfaos: {
-      total: 4,
+      total: 3,
       deals: [
-        { id: 'o1', titulo: 'Empresa Exemplo', vendedora: 'Tayna Kazial', diasParado: 12, valor: 15000 },
-        { id: 'o2', titulo: 'Logistica ABC', vendedora: 'Gabrieli Muneretto', diasParado: 8, valor: 22000 }
+        { id: '3', titulo: 'Logistica Gamma', valor: 32000, estagio: 'Em Negociacao', vendedora: 'Tayna Kazial', empresa: 'Gamma Express', dataCriacao: '2026-03-15', diasParado: 15, nextActivityDate: null },
+        { id: '7', titulo: 'Operador Eta', valor: 67000, estagio: 'Pedido de Cotacao', vendedora: 'Tayna Kazial', empresa: 'Eta Transportes', dataCriacao: '2026-03-18', diasParado: 12, nextActivityDate: null },
+        { id: '8', titulo: 'Carga Theta', valor: 43000, estagio: 'Em Negociacao', vendedora: 'Gabrieli Muneretto', empresa: 'Theta Freight', dataCriacao: '2026-03-22', diasParado: 8, nextActivityDate: null }
       ],
-      porVendedora: { 'Tayna Kazial': [], 'Gabrieli Muneretto': [] }
+      porVendedora: { 'Tayna Kazial': 2, 'Gabrieli Muneretto': 1 }
     },
     atividadesDiarias: [
-      { dia: '2026-03-25', 'Tayna Kazial': { total: 8, ligacoes: 5 }, 'Gabrieli Muneretto': { total: 6, ligacoes: 3 } },
-      { dia: '2026-03-26', 'Tayna Kazial': { total: 10, ligacoes: 7 }, 'Gabrieli Muneretto': { total: 5, ligacoes: 2 } },
-      { dia: '2026-03-27', 'Tayna Kazial': { total: 7, ligacoes: 4 }, 'Gabrieli Muneretto': { total: 8, ligacoes: 6 } }
+      { dia: '2026-03-24', 'Tayna Kazial': { total: 8, ligacoes: 3 }, 'Gabrieli Muneretto': { total: 6, ligacoes: 2 } },
+      { dia: '2026-03-25', 'Tayna Kazial': { total: 10, ligacoes: 5 }, 'Gabrieli Muneretto': { total: 7, ligacoes: 3 } },
+      { dia: '2026-03-26', 'Tayna Kazial': { total: 9, ligacoes: 4 }, 'Gabrieli Muneretto': { total: 8, ligacoes: 4 } },
+      { dia: '2026-03-27', 'Tayna Kazial': { total: 11, ligacoes: 6 }, 'Gabrieli Muneretto': { total: 5, ligacoes: 2 } },
+      { dia: '2026-03-28', 'Tayna Kazial': { total: 7, ligacoes: 3 }, 'Gabrieli Muneretto': { total: 9, ligacoes: 5 } }
     ],
     salesVelocity: {
-      geral: { velocity: 12500, numDeals: 15, valorMedio: 18000, conversao: 46.7, cicloMedio: 10.2 },
+      geral: { velocity: 9200, numDeals: 14, valorMedio: 81500, conversao: 57.1, cicloMedio: 8.5 },
       porVendedora: {
-        'Tayna Kazial': { velocity: 7800, numDeals: 9, valorMedio: 20000, conversao: 55.6, cicloMedio: 9.5 },
-        'Gabrieli Muneretto': { velocity: 4700, numDeals: 6, valorMedio: 15000, conversao: 33.3, cicloMedio: 11.0 }
+        'Tayna Kazial': { velocity: 5100, numDeals: 7, valorMedio: 94250, conversao: 57.1, cicloMedio: 7.2 },
+        'Gabrieli Muneretto': { velocity: 4100, numDeals: 7, valorMedio: 69855, conversao: 57.1, cicloMedio: 9.8 }
       }
     },
     followupFrequency: {
       mediaWon: 4.2,
       mediaLost: 1.8,
-      distribuicaoWon: { zero: 0, um_dois: 2, tres_cinco: 4, seis_dez: 1, mais_dez: 0 },
-      distribuicaoLost: { zero: 3, um_dois: 4, tres_cinco: 1, seis_dez: 0, mais_dez: 0 }
+      distribuicaoWon: { zero: 0, um_dois: 2, tres_cinco: 4, seis_dez: 2, mais_dez: 0 },
+      distribuicaoLost: { zero: 2, um_dois: 3, tres_cinco: 1, seis_dez: 0, mais_dez: 0 }
     },
     tempoResposta: {
-      mediaGeral: 3.5,
-      porVendedora: { 'Tayna Kazial': 2.8, 'Gabrieli Muneretto': 4.2 },
-      distribuicao: { ate2h: 5, de2a4h: 4, de4a8h: 3, mais8h: 2 },
+      mediaGeral: 3.2,
+      porVendedora: { 'Tayna Kazial': 2.8, 'Gabrieli Muneretto': 3.6 },
+      distribuicao: { ate2h: 4, de2a4h: 3, de4a8h: 2, mais8h: 1 },
       ultimos10: [
-        { dealId: 'd1', empresa: 'Transportadora Alpha', vendedora: 'Tayna Kazial', horasResposta: 1.5, valor: 25000 },
-        { dealId: 'd2', empresa: 'Logistica Beta', vendedora: 'Gabrieli Muneretto', horasResposta: 3.2, valor: 18000 }
+        { dealId: '108', empresa: 'Omicron Log', vendedora: 'Gabrieli Muneretto', horasResposta: 1.5, valor: 14421 },
+        { dealId: '107', empresa: 'Xi Cargo', vendedora: 'Tayna Kazial', horasResposta: 2.1, valor: 53000 },
+        { dealId: '106', empresa: 'Nu Express', vendedora: 'Gabrieli Muneretto', horasResposta: 4.3, valor: 78000 },
+        { dealId: '105', empresa: 'Mu Rodoviario', vendedora: 'Tayna Kazial', horasResposta: 1.8, valor: 142000 },
+        { dealId: '104', empresa: 'Lambda Cargo', vendedora: 'Gabrieli Muneretto', horasResposta: 5.2, valor: 67000 }
       ],
-      totalAnalisados: 14
+      totalAnalisados: 10
     }
   }
 }
