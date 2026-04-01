@@ -1,15 +1,1170 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>THX Group | Dashboard Comercial</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cockpit de Reativação - THX Group</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        .btn-copy {
+            transition: all 0.2s ease;
+        }
+
+        .btn-copy:active {
+            transform: scale(0.95);
+        }
+
+        .toast {
+            animation: slideIn 0.3s ease-out;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .stage-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .stage-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .stage-card.active {
+            border-color: #f97316;
+            background-color: #fff7ed;
+        }
+
+        .objection-item {
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn {
+            transition: all 0.2s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn.active {
+            border-bottom-color: #f97316;
+            color: #f97316;
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .gradient-header {
+            background: linear-gradient(135deg, #1a2744 0%, #2d3e5f 100%);
+        }
+
+        .card-shadow {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .script-block {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-left: 4px solid #f97316;
+        }
+
+        .objection-response {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+        }
+
+        .template-code {
+            background: #1e293b;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+        }
+
+        .checklist-item {
+            transition: all 0.2s ease;
+        }
+
+        .checklist-item:hover {
+            background: #f8fafc;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100">
+
+    <!-- HEADER -->
+    <div class="gradient-header text-white sticky top-0 z-50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center font-bold text-lg">THX</div>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold">Cockpit de Reativação</h1>
+                        <p class="text-sm text-blue-200">THX Group | Logtech</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1 px-3 py-1 bg-orange-500 bg-opacity-20 rounded-full text-sm font-medium">
+                        <span class="pulse-dot inline-block w-2 h-2 bg-orange-400 rounded-full"></span>
+                        Pronto para usar
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        <!-- TAB NAVIGATION -->
+        <div class="mb-8 border-b border-slate-200 overflow-x-auto">
+            <div class="flex gap-1 sm:gap-4">
+                <button class="tab-btn active px-4 py-3 text-sm sm:text-base font-medium text-slate-700 whitespace-nowrap transition-all" data-tab="funil">
+                    <span class="inline-block sm:hidden">Funil</span>
+                    <span class="hidden sm:inline">Funil de Reativação</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm sm:text-base font-medium text-slate-700 whitespace-nowrap" data-tab="scripts">
+                    <span class="inline-block sm:hidden">Scripts</span>
+                    <span class="hidden sm:inline">Scripts e Mensagens</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm sm:text-base font-medium text-slate-700 whitespace-nowrap" data-tab="objecoes">
+                    <span class="inline-block sm:hidden">Objeções</span>
+                    <span class="hidden sm:inline">Quebra de Objeções</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm sm:text-base font-medium text-slate-700 whitespace-nowrap" data-tab="templates">
+                    <span class="inline-block sm:hidden">Templates</span>
+                    <span class="hidden sm:inline">Templates WA e Email</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm sm:text-base font-medium text-slate-700 whitespace-nowrap" data-tab="checklist">
+                    <span class="inline-block sm:hidden">Checklist</span>
+                    <span class="hidden sm:inline">Checklist por Ligação</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm sm:text-base font-medium text-slate-700 whitespace-nowrap" data-tab="perfis">
+                    <span class="inline-block sm:hidden">Perfis</span>
+                    <span class="hidden sm:inline">Guia por Perfil</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB CONTENT -->
+
+        <!-- 1. FUNIL DE REATIVAÇÃO -->
+        <div id="funil" class="tab-content active space-y-6">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6 card-shadow">
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Funil de Reativação</h2>
+                <p class="text-slate-600 mb-6">Acompanhe o progresso do cliente pelo funil. Clique em cada etapa para ver os próximos passos e scripts recomendados.</p>
+
+                <div class="space-y-4">
+                    <!-- Stage 1: 1º Contato -->
+                    <div class="stage-card active border-2 border-orange-500 rounded-lg p-4 sm:p-6 bg-gradient-to-r from-orange-50 to-white">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-orange-500 text-white font-bold text-sm">1</div>
+                                    <h3 class="text-lg sm:text-xl font-bold text-slate-900">1º Contato</h3>
+                                    <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded">ATIVO</span>
+                                </div>
+                                <p class="text-sm text-slate-600 ml-11 mb-3">Fazer o contato inicial, se apresentar e entender a situação atual do cliente.</p>
+                                <div class="ml-11 space-y-2">
+                                    <p class="text-sm font-medium text-slate-700">O que fazer:</p>
+                                    <ul class="text-sm text-slate-600 space-y-1 list-disc list-inside">
+                                        <li>Pesquisar cliente no CRM antes da ligação</li>
+                                        <li>Ligar ou enviar WhatsApp conforme preferência</li>
+                                        <li>Se apresentar com entusiasmo</li>
+                                        <li>Explicar razão do contato (sentimos falta)</li>
+                                        <li>Agendar conversa ou coletar interesse</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="text-3xl">📞</div>
+                        </div>
+                    </div>
+
+                    <!-- Stage 2: Qualificação -->
+                    <div class="stage-card border-2 border-slate-200 rounded-lg p-4 sm:p-6 hover:border-orange-300">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-300 text-slate-700 font-bold text-sm">2</div>
+                                    <h3 class="text-lg sm:text-xl font-bold text-slate-900">Qualificação</h3>
+                                </div>
+                                <p class="text-sm text-slate-600 ml-11 mb-3">Entender por que saiu, volume atual, dores e necessidades.</p>
+                                <div class="ml-11 space-y-2">
+                                    <p class="text-sm font-medium text-slate-700">O que fazer:</p>
+                                    <ul class="text-sm text-slate-600 space-y-1 list-disc list-inside">
+                                        <li>Fazer perguntas sobre parada de operação</li>
+                                        <li>Entender situação atual (volume, fornecedor)</li>
+                                        <li>Identificar dores e pontos de melhoria</li>
+                                        <li>Anotar informações importantes</li>
+                                        <li>Agendar apresentação de proposta</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="text-3xl">🔍</div>
+                        </div>
+                    </div>
+
+                    <!-- Stage 3: Proposta -->
+                    <div class="stage-card border-2 border-slate-200 rounded-lg p-4 sm:p-6 hover:border-orange-300">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-300 text-slate-700 font-bold text-sm">3</div>
+                                    <h3 class="text-lg sm:text-xl font-bold text-slate-900">Apresentação de Proposta</h3>
+                                </div>
+                                <p class="text-sm text-slate-600 ml-11 mb-3">Apresentar benefícios, diferenciais e condições especiais de reativação.</p>
+                                <div class="ml-11 space-y-2">
+                                    <p class="text-sm font-medium text-slate-700">O que fazer:</p>
+                                    <ul class="text-sm text-slate-600 space-y-1 list-disc list-inside">
+                                        <li>Apresentar proposta personalizada</li>
+                                        <li>Destacar melhorias e diferenciais THX</li>
+                                        <li>Oferecer condições atrativas de reativação</li>
+                                        <li>Responder objeções com confiança</li>
+                                        <li>Solicitar decisão ou próxima reunião</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="text-3xl">📊</div>
+                        </div>
+                    </div>
+
+                    <!-- Stage 4: Reativação -->
+                    <div class="stage-card border-2 border-slate-200 rounded-lg p-4 sm:p-6 hover:border-orange-300">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-300 text-slate-700 font-bold text-sm">4</div>
+                                    <h3 class="text-lg sm:text-xl font-bold text-slate-900">Reativação Confirmada</h3>
+                                </div>
+                                <p class="text-sm text-slate-600 ml-11 mb-3">Cliente voltou a fazer negócio. Alinhar operacional e garantir sucesso.</p>
+                                <div class="ml-11 space-y-2">
+                                    <p class="text-sm font-medium text-slate-700">O que fazer:</p>
+                                    <ul class="text-sm text-slate-600 space-y-1 list-disc list-inside">
+                                        <li>Confirmar primeiras cargas</li>
+                                        <li>Alinhar com operacional da THX</li>
+                                        <li>Designar gerente de conta</li>
+                                        <li>Dar boas-vindas com entusiasmo</li>
+                                        <li>Planejar acompanhamento próximas semanas</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="text-3xl">🎉</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. SCRIPTS E MENSAGENS -->
+        <div id="scripts" class="tab-content hidden space-y-6">
+            <div class="space-y-4">
+                <!-- 1º Contato - Ligação -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-slate-800 to-slate-900 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">1º Contato - Ligação</h3>
+                        <p class="text-sm text-slate-300 mt-1">Script para primeira abordagem por telefone</p>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="script-block p-4 rounded-lg mb-4">
+                            <p class="text-slate-800 leading-relaxed">
+                                "Olá [Nome], aqui é [Vendedor] da THX Group! Tudo bem? Estou entrando em contato porque sentimos falta da sua empresa aqui conosco. Percebi que faz um tempo que não movimentamos cargas juntos e gostaria de entender como está a sua operação atualmente. Você tem 5 minutinhos para a gente conversar?"
+                            </p>
+                        </div>
+                        <button class="btn-copy w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('Olá [Nome], aqui é [Vendedor] da THX Group! Tudo bem? Estou entrando em contato porque sentimos falta da sua empresa aqui conosco. Percebi que faz um tempo que não movimentamos cargas juntos e gostaria de entender como está a sua operação atualmente. Você tem 5 minutinhos para a gente conversar?')">
+                            <span>📋</span> Copiar Script
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 1º Contato - WhatsApp -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-green-600 to-green-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">1º Contato - WhatsApp</h3>
+                        <p class="text-sm text-green-200 mt-1">Mensagem inicial para abordagem via WhatsApp</p>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="script-block p-4 rounded-lg mb-4">
+                            <p class="text-slate-800 leading-relaxed">
+                                "Olá [Nome], tudo bem? Aqui é [Vendedor] da THX Group! Estou passando para ver como está a sua operação. Faz um tempo que não trabalhamos juntos e gostaria de entender se tem algo que possamos melhorar para voltar a atender vocês. Podemos conversar?"
+                            </p>
+                        </div>
+                        <button class="btn-copy w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('Olá [Nome], tudo bem? Aqui é [Vendedor] da THX Group! Estou passando para ver como está a sua operação. Faz um tempo que não trabalhamos juntos e gostaria de entender se tem algo que possamos melhorar para voltar a atender vocês. Podemos conversar?')">
+                            <span>📋</span> Copiar Mensagem
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Qualificação - Ligação -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-slate-800 to-slate-900 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">Qualificação - Ligação</h3>
+                        <p class="text-sm text-slate-300 mt-1">Script para entender necessidades do cliente</p>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="script-block p-4 rounded-lg mb-4">
+                            <p class="text-slate-800 leading-relaxed mb-4">
+                                "Ótimo! Que legal conversar com você novamente. Só para eu entender melhor: qual foi o motivo de vocês terem parado de usar a gente? Qual é o volume de cargas que vocês estão movimentando hoje? E qual é o maior desafio que vocês estão enfrentando na logística neste momento?"
+                            </p>
+                            <p class="text-slate-700 text-sm font-medium italic border-l-4 border-orange-500 pl-3">
+                                Nota: Ouça atentamente, faça anotações, mostre interesse genuíno nas respostas.
+                            </p>
+                        </div>
+                        <button class="btn-copy w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('Ótimo! Que legal conversar com você novamente. Só para eu entender melhor: qual foi o motivo de vocês terem parado de usar a gente? Qual é o volume de cargas que vocês estão movimentando hoje? E qual é o maior desafio que vocês estão enfrentando na logística neste momento?')">
+                            <span>📋</span> Copiar Script
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Proposta - Ligação -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-slate-800 to-slate-900 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">Apresentação de Proposta - Ligação</h3>
+                        <p class="text-sm text-slate-300 mt-1">Script para apresentar benefícios de reativação</p>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="script-block p-4 rounded-lg mb-4">
+                            <p class="text-slate-800 leading-relaxed mb-3">
+                                "Perfeito, entendi. Você sabe, desde que vocês saíram da gente, a gente investiu muito em inovação. Conseguimos reduzir prazos de entrega em 15%, implementamos rastreamento em tempo real 24/7, e criamos um programa especial de reativação com descontos exclusivos. Além disso, vou designar um gerente de conta dedicado só para vocês."
+                            </p>
+                            <p class="text-slate-800 leading-relaxed">
+                                "Para reativar, a gente pode fazer uma oferta bem atrativa: primeiras 50 cargas com 10% de desconto e 30 dias sem taxa de adesão. Que tal a gente começar com um piloto de 10 cargas na próxima semana para vocês sentirem a qualidade que a gente oferece?"
+                            </p>
+                        </div>
+                        <button class="btn-copy w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('Perfeito, entendi. Você sabe, desde que vocês saíram da gente, a gente investiu muito em inovação. Conseguimos reduzir prazos de entrega em 15%, implementamos rastreamento em tempo real 24/7, e criamos um programa especial de reativação com descontos exclusivos. Além disso, vou designar um gerente de conta dedicado só para vocês. Para reativar, a gente pode fazer uma oferta bem atrativa: primeiras 50 cargas com 10% de desconto e 30 dias sem taxa de adesão. Que tal a gente começar com um piloto de 10 cargas na próxima semana para vocês sentirem a qualidade que a gente oferece?')">
+                            <span>📋</span> Copiar Script
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Reativação - Ligação -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-slate-800 to-slate-900 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">Fechamento e Próximos Passos</h3>
+                        <p class="text-sm text-slate-300 mt-1">Script para confirmar reativação e alinhar operacional</p>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="script-block p-4 rounded-lg mb-4">
+                            <p class="text-slate-800 leading-relaxed mb-3">
+                                "Ótimo! Fico muito feliz que vocês toparam voltar para a gente. Vou enviar um WhatsApp agora com os documentos da proposta e as condições especiais. Você vai receber um email também com os próximos passos."
+                            </p>
+                            <p class="text-slate-800 leading-relaxed mb-3">
+                                "Vou preparar tudo para vocês começarem na próxima semana. Meu colega [Gerente Operacional] vai entrar em contato com você amanhã para confirmar os detalhes das primeiras cargas, certo?"
+                            </p>
+                            <p class="text-slate-800 leading-relaxed">
+                                "Fico à disposição para qualquer dúvida! Vou acompanhar pessoalmente para que tudo saia perfeito. Você vai lembrar por que escolheu a THX no passado!"
+                            </p>
+                        </div>
+                        <button class="btn-copy w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('Ótimo! Fico muito feliz que vocês toparam voltar para a gente. Vou enviar um WhatsApp agora com os documentos da proposta e as condições especiais. Você vai receber um email também com os próximos passos. Vou preparar tudo para vocês começarem na próxima semana. Meu colega [Gerente Operacional] vai entrar em contato com você amanhã para confirmar os detalhes das primeiras cargas, certo? Fico à disposição para qualquer dúvida! Vou acompanhar pessoalmente para que tudo saia perfeito. Você vai lembrar por que escolheu a THX no passado!')">
+                            <span>📋</span> Copiar Script
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. QUEBRA DE OBJEÇÕES -->
+        <div id="objecoes" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6 card-shadow">
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Quebra de Objeções</h2>
+                <p class="text-slate-600 mb-6">Clique em cada objeção para ver uma resposta pronta e convincente. Use estas como guia para suas respostas personalizadas.</p>
+
+                <div class="space-y-3">
+                    <!-- Objeção 1 -->
+                    <div class="objection-item border border-slate-200 rounded-lg overflow-hidden">
+                        <button class="w-full px-4 sm:px-6 py-4 text-left hover:bg-slate-50 transition-all flex items-center justify-between" onclick="toggleObjection(this)">
+                            <span class="font-medium text-slate-900">"O preço de vocês é alto"</span>
+                            <span class="text-xl">➕</span>
+                        </button>
+                        <div class="objection-response hidden px-4 sm:px-6 py-4">
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                Resposta: "Entendo essa preocupação. Mas quando a gente olha o custo total de operação, a gente oferece muito mais. Nossos clientes pagam menos com a gente não só pela taxa de frete, mas porque reduzimos avarias em 30%, perdas de carga em 90%, e prazos fora dos acordados em quase zero."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                "Um fornecedor barato que entrega com atraso ou danificado acaba custo muito mais caro. Vocês já pararam para pensar quanto perdem com atraso em entrega? Com a gente, vocês ganham confiabilidade, rastreamento 24/7 e um parceiro de verdade."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed font-medium text-orange-600">
+                                "Que tal a gente começa com um piloto e vocês veem o valor na prática?"
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Objeção 2 -->
+                    <div class="objection-item border border-slate-200 rounded-lg overflow-hidden">
+                        <button class="w-full px-4 sm:px-6 py-4 text-left hover:bg-slate-50 transition-all flex items-center justify-between" onclick="toggleObjection(this)">
+                            <span class="font-medium text-slate-900">"Estou satisfeito com o fornecedor atual"</span>
+                            <span class="text-xl">➕</span>
+                        </button>
+                        <div class="objection-response hidden px-4 sm:px-6 py-4">
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                Resposta: "Que legal que vocês têm um bom fornecedor! Mas sabe, o mercado está muito dinâmico. A gente oferece algo que pode agregar bastante ao seu portfólio: serviços complementares, rotas que o seu fornecedor atual talvez não atenda, e capacidade extra em períodos de pico."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                "Grandes empresas trabalham com 2 ou 3 fornecedores justamente para ter essa segurança e flexibilidade. Se seu fornecedor atual tiver um problema, vocês ficam sem opção. Com a gente como backup, vocês ganham tranquilidade."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed font-medium text-orange-600">
+                                "Posso oferecer um desconto especial para vocês testarem alguns serviços específicos?"
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Objeção 3 -->
+                    <div class="objection-item border border-slate-200 rounded-lg overflow-hidden">
+                        <button class="w-full px-4 sm:px-6 py-4 text-left hover:bg-slate-50 transition-all flex items-center justify-between" onclick="toggleObjection(this)">
+                            <span class="font-medium text-slate-900">"Tive problemas com entregas no passado"</span>
+                            <span class="text-xl">➕</span>
+                        </button>
+                        <div class="objection-response hidden px-4 sm:px-6 py-4">
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                Resposta: "Entendo totalmente essa preocupação, e peço desculpas pelas falhas que vocês tiveram no passado. Mas desde então, a gente investiu pesadamente em operação e tecnologia."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                "Hoje oferecemos um SLA de 99,2% de conformidade, rastreamento em tempo real de todas as cargas, e um gerente de conta dedicado só para vocês. Além disso, criamos um fundo de garantia: se a gente não cumprir o prazo, vocês têm devolução integral."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                "Posso colocar isso por escrito na proposta. Quero que vocês voltem com confiança na gente, não com medo."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed font-medium text-orange-600">
+                                "Vocês aceitam começar com cargas pequenas para a gente ganhar essa confiança de novo?"
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Objeção 4 -->
+                    <div class="objection-item border border-slate-200 rounded-lg overflow-hidden">
+                        <button class="w-full px-4 sm:px-6 py-4 text-left hover:bg-slate-50 transition-all flex items-center justify-between" onclick="toggleObjection(this)">
+                            <span class="font-medium text-slate-900">"Não tenho volume suficiente agora"</span>
+                            <span class="text-xl">➕</span>
+                        </button>
+                        <div class="objection-response hidden px-4 sm:px-6 py-4">
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                Resposta: "Ah, isso é até legal! Com volume reduzido é quando a gente consegue oferecer o melhor suporte. Oferecemos consolidação de cargas, combinamos seus volumes com outros clientes para manter custos baixos."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                "Quando vocês começarem a crescer, a gente já está aí do lado de vocês, conhecendo a operação de vocês. Além disso, temos soluções especiais para baixo volume: fracionamento, grupos de carga, etc."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed font-medium text-orange-600">
+                                "A gente cresce junto com vocês. Que tal começar pequeno e crescer juntos?"
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Objeção 5 -->
+                    <div class="objection-item border border-slate-200 rounded-lg overflow-hidden">
+                        <button class="w-full px-4 sm:px-6 py-4 text-left hover:bg-slate-50 transition-all flex items-center justify-between" onclick="toggleObjection(this)">
+                            <span class="font-medium text-slate-900">"Preciso pensar / vou avaliar"</span>
+                            <span class="text-xl">➕</span>
+                        </button>
+                        <div class="objection-response hidden px-4 sm:px-6 py-4">
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                Resposta: "Claro, é importante avaliar bem. Mas saiba que essa oferta especial de reativação é válida apenas por 7 dias, porque é uma promoção limitada que lançamos agora."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                "Que tal a gente marcar uma reunião para amanhã ou depois? Você vê a proposta, tira todas as suas dúvidas, e aí você avalia com calma? Assim fica mais concreto."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed font-medium text-orange-600">
+                                "Qual horário funciona melhor para você amanhã: 14h ou 15h?"
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Objeção 6 -->
+                    <div class="objection-item border border-slate-200 rounded-lg overflow-hidden">
+                        <button class="w-full px-4 sm:px-6 py-4 text-left hover:bg-slate-50 transition-all flex items-center justify-between" onclick="toggleObjection(this)">
+                            <span class="font-medium text-slate-900">"A empresa está passando por momento difícil"</span>
+                            <span class="text-xl">➕</span>
+                        </button>
+                        <div class="objection-response hidden px-4 sm:px-6 py-4">
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                Resposta: "Ah, entendo perfeitamente. Esses tempos estão desafiadores para todo mundo. Justamente por isso, a gente quer ser um parceiro de vocês, não um custo extra."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                "Com a THX, vocês conseguem otimizar os custos de logística em até 20%, e isso melhora direto o seu resultado. Além disso, oferecemos condições flexíveis, sem multas por redução de volume, e podemos ajustar prazos conforme a necessidade de vocês."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed font-medium text-orange-600">
+                                "Deixa eu ajudar vocês a reduzir custos, combinado?"
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Objeção 7 -->
+                    <div class="objection-item border border-slate-200 rounded-lg overflow-hidden">
+                        <button class="w-full px-4 sm:px-6 py-4 text-left hover:bg-slate-50 transition-all flex items-center justify-between" onclick="toggleObjection(this)">
+                            <span class="font-medium text-slate-900">"Já tenho contratos fechados"</span>
+                            <span class="text-xl">➕</span>
+                        </button>
+                        <div class="objection-response hidden px-4 sm:px-6 py-4">
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                Resposta: "Sem problema! Eu entendo que vocês têm compromissos. Mas provavelmente não são 100% das cargas, certo? A gente pode atender as cargas que ficam de fora, fazer operações pontuais, ou servir como backup."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                "Quando seus contratos vencerem, vocês já conhecem a qualidade da THX e a gente já é uma opção natural. Enquanto isso, vamos começar pequeno nos espaços que vocês têm."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed font-medium text-orange-600">
+                                "Qual é a porcentagem de carga que fica aberta? Posso trabalhar exatamente essa fatia?"
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Objeção 8 -->
+                    <div class="objection-item border border-slate-200 rounded-lg overflow-hidden">
+                        <button class="w-full px-4 sm:px-6 py-4 text-left hover:bg-slate-50 transition-all flex items-center justify-between" onclick="toggleObjection(this)">
+                            <span class="font-medium text-slate-900">"O atendimento não era bom"</span>
+                            <span class="text-xl">➕</span>
+                        </button>
+                        <div class="objection-response hidden px-4 sm:px-6 py-4">
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                Resposta: "Peço desculpas mesmo por isso. Você sabe, a gente ouviu muito essa crítica e fez uma reformulação completa do time de atendimento. Hoje temos um gerente de conta dedicado para cada cliente importante, um WhatsApp disponível 24/7, e resposta garantida em até 2 horas."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed mb-3">
+                                "Além disso, temos um sistema de feedback mensal para garantir que vocês estejam satisfeitos. Se em qualquer momento não estiverem felizes com o atendimento, vocês me ligam direto e resolvemos."
+                            </p>
+                            <p class="text-slate-700 leading-relaxed font-medium text-orange-600">
+                                "Esse é um dos principais diferenciais da gente agora. Vocês vão ver a diferença."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. TEMPLATES WHATSAPP E EMAIL -->
+        <div id="templates" class="tab-content hidden space-y-6">
+            <!-- WhatsApp Section -->
+            <div class="space-y-4">
+                <h2 class="text-2xl font-bold text-slate-900">Templates WhatsApp</h2>
+
+                <!-- Template WA 1 -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-green-600 to-green-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">Primeira Abordagem</h3>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="template-code p-4 rounded-lg mb-4">
+                            <pre class="font-mono text-sm whitespace-pre-wrap">Olá [Nome], tudo bem? :)
+
+Aqui é [Seu Nome] da THX Group.
+
+Estou passando para ver como está a sua operação. Faz um tempo que não trabalhamos juntos e gostaria de entender se tem algo que a gente possa melhorar para voltar a atender vocês.
+
+Podemos conversar? 💬</pre>
+                        </div>
+                        <button class="btn-copy w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('Olá [Nome], tudo bem? :)\n\nAqui é [Seu Nome] da THX Group.\n\nEstou passando para ver como está a sua operação. Faz um tempo que não trabalhamos juntos e gostaria de entender se tem algo que a gente possa melhorar para voltar a atender vocês.\n\nPodemos conversar? 💬')">
+                            <span>📋</span> Copiar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Template WA 2 -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-green-600 to-green-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">Proposta de Reativação</h3>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="template-code p-4 rounded-lg mb-4">
+                            <pre class="font-mono text-sm whitespace-pre-wrap">[Nome], tudo bem? :)
+
+Fico feliz em voltar a conversar com vocês!
+
+Preparei uma oferta especial de reativação:
+
+Primeiras 50 cargas com 10% de desconto
+30 dias sem taxa de adesão
+Rastreamento 24/7 incluído
+Gerente de conta dedicado
+
+O que acham de a gente começar com um piloto de 10 cargas na próxima semana? 🚚
+
+Envio os documentos agora!
+
+Abs,
+[Seu Nome]
+THX Group</pre>
+                        </div>
+                        <button class="btn-copy w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('[Nome], tudo bem? :)\n\nFico feliz em voltar a conversar com vocês!\n\nPreparei uma oferta especial de reativação:\n\nPrimeiras 50 cargas com 10% de desconto\n30 dias sem taxa de adesão\nRastreamento 24/7 incluído\nGerente de conta dedicado\n\nO que acham de a gente começar com um piloto de 10 cargas na próxima semana? 🚚\n\nEnvio os documentos agora!\n\nAbs,\n[Seu Nome]\nTHX Group')">
+                            <span>📋</span> Copiar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Template WA 3 -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-green-600 to-green-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">Bem-vindo de Volta</h3>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="template-code p-4 rounded-lg mb-4">
+                            <pre class="font-mono text-sm whitespace-pre-wrap">Ótimo demais, [Nome]! 🎉
+
+Vocês voltaram para a THX Group!
+
+Estou preparando tudo para que as primeiras cargas saiam perfeitas. Meu colega [Gerente] vai entrar em contato amanhã para confirmar os detalhes operacionais.
+
+Fico à disposição para qualquer dúvida. Vou acompanhar pessoalmente para que tudo saia como esperado.
+
+Vocês vão lembrar por que escolheram a gente! 💪
+
+Abs,
+[Seu Nome]</pre>
+                        </div>
+                        <button class="btn-copy w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('Ótimo demais, [Nome]! 🎉\n\nVocês voltaram para a THX Group!\n\nEstou preparando tudo para que as primeiras cargas saiam perfeitas. Meu colega [Gerente] vai entrar em contato amanhã para confirmar os detalhes operacionais.\n\nFico à disposição para qualquer dúvida. Vou acompanhar pessoalmente para que tudo saia como esperado.\n\nVocês vão lembrar por que escolheram a gente! 💪\n\nAbs,\n[Seu Nome]')">
+                            <span>📋</span> Copiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Section -->
+            <div class="space-y-4 mt-8">
+                <h2 class="text-2xl font-bold text-slate-900">Templates Email</h2>
+
+                <!-- Template Email 1 -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">Proposta de Reativação Formal</h3>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="template-code p-4 rounded-lg mb-4">
+                            <pre class="font-mono text-sm whitespace-pre-wrap">Assunto: Proposta Especial de Reativação - THX Group
+
+Prezado [Nome],
+
+Espero que este email o encontre bem.
+
+Foi um prazer conversar com você ontem sobre a possibilidade de voltarmos a trabalhar juntos. Compreendo as razões pelas quais vocês pausaram a operação conosco, e gostaria de reafirmar nosso compromisso em oferecer uma experiência diferenciada.
+
+Desde a última vez que trabalhamos juntos, investimos significativamente em:
+
+- Rastreamento em tempo real 24/7
+- Redução de 15% nos prazos de entrega
+- SLA de 99,2% de conformidade
+- Gerente de conta dedicado por cliente
+- Programa de garantia de entrega
+
+OFERTA ESPECIAL DE REATIVAÇÃO:
+- Primeiras 50 cargas com 10% de desconto
+- 30 dias sem taxa de adesão
+- Rastreamento premium incluído
+- Onboarding personalizado
+
+Gostaria de iniciar com um piloto de 10 cargas na próxima semana para que vocês vivenciem a qualidade do nosso serviço.
+
+Fico à disposição para esclarecer dúvidas ou ajustar a proposta conforme necessário.
+
+Atenciosamente,
+
+[Seu Nome]
+[Seu Telefone]
+[Seu Email]
+THX Group - Logtech</pre>
+                        </div>
+                        <button class="btn-copy w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('Assunto: Proposta Especial de Reativação - THX Group\n\nPrezado [Nome],\n\nEspero que este email o encontre bem.\n\nFoi um prazer conversar com você ontem sobre a possibilidade de voltarmos a trabalhar juntos. Compreendo as razões pelas quais vocês pausaram a operação conosco, e gostaria de reafirmar nosso compromisso em oferecer uma experiência diferenciada.\n\nDesde a última vez que trabalhamos juntos, investimos significativamente em:\n\n- Rastreamento em tempo real 24/7\n- Redução de 15% nos prazos de entrega\n- SLA de 99,2% de conformidade\n- Gerente de conta dedicado por cliente\n- Programa de garantia de entrega\n\nOFERTA ESPECIAL DE REATIVAÇÃO:\n- Primeiras 50 cargas com 10% de desconto\n- 30 dias sem taxa de adesão\n- Rastreamento premium incluído\n- Onboarding personalizado\n\nGostaria de iniciar com um piloto de 10 cargas na próxima semana para que vocês vivenciem a qualidade do nosso serviço.\n\nFico à disposição para esclarecer dúvidas ou ajustar a proposta conforme necessário.\n\nAtenciosamente,\n\n[Seu Nome]\n[Seu Telefone]\n[Seu Email]\nTHX Group - Logtech')">
+                            <span>📋</span> Copiar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Template Email 2 -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">Follow-up após Proposta</h3>
+                    </div>
+                    <div class="p-4 sm:p-6">
+                        <div class="template-code p-4 rounded-lg mb-4">
+                            <pre class="font-mono text-sm whitespace-pre-wrap">Assunto: Seguimento - Proposta de Reativação THX
+
+Olá [Nome],
+
+Como você está?
+
+Estou acompanhando se você conseguiu analisar a proposta que enviamos. Tenho certeza que vocês vão ver o valor que a THX pode agregar à operação de vocês.
+
+Caso tenha dúvidas sobre algum ponto, fico totalmente disponível para conversar:
+- Por telefone: [Seu Tel]
+- Via WhatsApp: [Seu Tel]
+- Por email: [Seu Email]
+
+Lembre-se que a oferta especial é válida por 7 dias apenas, pois é parte de um programa promocional limitado.
+
+O que acham de marcarmos uma videoconferência rápida para eu tirar todas as dúvidas de vocês?
+
+Abraço,
+
+[Seu Nome]
+THX Group</pre>
+                        </div>
+                        <button class="btn-copy w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2" onclick="copiarTexto('Assunto: Seguimento - Proposta de Reativação THX\n\nOlá [Nome],\n\nComo você está?\n\nEstou acompanhando se você conseguiu analisar a proposta que enviamos. Tenho certeza que vocês vão ver o valor que a THX pode agregar à operação de vocês.\n\nCaso tenha dúvidas sobre algum ponto, fico totalmente disponível para conversar:\n- Por telefone: [Seu Tel]\n- Via WhatsApp: [Seu Tel]\n- Por email: [Seu Email]\n\nLembre-se que a oferta especial é válida por 7 dias apenas, pois é parte de um programa promocional limitado.\n\nO que acham de marcarmos uma videoconferência rápida para eu tirar todas as dúvidas de vocês?\n\nAbraço,\n\n[Seu Nome]\nTHX Group')">
+                            <span>📋</span> Copiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. CHECKLIST POR LIGAÇÃO -->
+        <div id="checklist" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6 card-shadow">
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Checklist por Ligação</h2>
+                <p class="text-slate-600 mb-6">Use este checklist para se preparar, durante e depois da ligação com o cliente. Cada item marca seu progresso.</p>
+
+                <!-- Before Call -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">📋</span> Antes da Ligação
+                    </h3>
+                    <div class="space-y-3">
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Procurar cliente no CRM (Pipedrive) para verificar histórico</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Revisar últimas cargas e data de parada do cliente</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Anotar motivo conhecido da saída do cliente</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Preparar abordagem personalizada (usar nome, dados da empresa)</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Definir objetivo da ligação (apresentação ou qualificação)</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Preparar 2-3 objeções principais que pode enfrentar</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Ter paper com scripts aberto no computador ou celular</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- During Call -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">📞</span> Durante a Ligação
+                    </h3>
+                    <div class="space-y-3">
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Cumprimentar com entusiasmo e se apresentar com clareza</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Confirmar que é bom momento para conversar (respeitar tempo)</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Explicar propósito da ligação (sentimos falta, gostamos de trabalhar)</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Fazer perguntas abertas e OUVIR atentamente as respostas</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Anotar pontos importantes: motivo da saída, volume, dores</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Responder objeções com calma e confiança (usar quebra de objeções)</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Apresentar benefícios que resolvem as dores mencionadas</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Oferecer próximo passo claro (piloto, reunião, WhatsApp)</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Confirmar melhor horário para próxima conversa</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- After Call -->
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">✅</span> Depois da Ligação
+                    </h3>
+                    <div class="space-y-3">
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Registrar ligação no Pipedrive com resumo do que foi conversado</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Incluir dados importantes: volume, motivo saída, objeções</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Enviar WhatsApp com proposição personalizada em até 30min</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Agendar próxima ação no Pipedrive (follow-up, reunião, etc)</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Enviar email formal com proposta se cliente demonstrou interesse</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Comunicar gerente operacional se cliente aparenta confirmado</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Agendar follow-up em 3 dias se não houver resposta</span>
+                        </label>
+                        <label class="checklist-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                            <input type="checkbox" class="w-5 h-5 mt-1 cursor-pointer">
+                            <span class="text-slate-700">Manter entusiasmo mesmo com rejeição (reaproache em 1 mês)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. GUIA POR PERFIL -->
+        <div id="perfis" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6 card-shadow mb-6">
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Guia de Abordagem por Perfil</h2>
+                <p class="text-slate-600">Cada tipo de cliente tem necessidades e preocupações específicas. Use este guia para personalizar sua abordagem.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Transportadora -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">🚚 Transportadora</h3>
+                    </div>
+                    <div class="p-4 sm:p-6 space-y-4">
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Foco Principal:</h4>
+                            <ul class="text-sm text-slate-700 space-y-1 list-disc list-inside">
+                                <li>Otimização de rotas e roteiros</li>
+                                <li>Maximização de volume e frete</li>
+                                <li>Redução de custos operacionais</li>
+                                <li>Confiabilidade em deadlines</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Dores Comuns:</h4>
+                            <ul class="text-sm text-slate-700 space-y-1 list-disc list-inside">
+                                <li>Fretes baixos (pressão por preço)</li>
+                                <li>Ociosidade de frota</li>
+                                <li>Documentação excessiva</li>
+                                <li>Atrasos em pagamento</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Mensagem Chave:</h4>
+                            <p class="text-sm text-slate-700 italic border-l-4 border-blue-500 pl-3">
+                                "Com a THX, você otimiza rotas, garante frequência de saídas e foca no que faz melhor. Deixa a logística conosco."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Embarcador/Indústria -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-purple-600 to-purple-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">🏭 Embarcador / Indústria</h3>
+                    </div>
+                    <div class="p-4 sm:p-6 space-y-4">
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Foco Principal:</h4>
+                            <ul class="text-sm text-slate-700 space-y-1 list-disc list-inside">
+                                <li>Cumprimento de deadlines</li>
+                                <li>Integridade de produtos (zero avarias)</li>
+                                <li>Redução de custos logísticos</li>
+                                <li>Previsibilidade e confiabilidade</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Dores Comuns:</h4>
+                            <ul class="text-sm text-slate-700 space-y-1 list-disc list-inside">
+                                <li>Atrasos que afetam produção</li>
+                                <li>Avarias e perdas de carga</li>
+                                <li>Falta de visibilidade</li>
+                                <li>Múltiplos fornecedores</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Mensagem Chave:</h4>
+                            <p class="text-sm text-slate-700 italic border-l-4 border-purple-500 pl-3">
+                                "THX garante SLA 99,2%, rastreamento total, zero avarias. Você foca na produção, a gente garante a entrega."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- E-commerce -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-pink-600 to-pink-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">📦 E-commerce</h3>
+                    </div>
+                    <div class="p-4 sm:p-6 space-y-4">
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Foco Principal:</h4>
+                            <ul class="text-sm text-slate-700 space-y-1 list-disc list-inside">
+                                <li>Velocidade de entrega (last mile)</li>
+                                <li>Integração com sistemas</li>
+                                <li>Rastreamento ao cliente final</li>
+                                <li>Escalabilidade seasonal</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Dores Comuns:</h4>
+                            <ul class="text-sm text-slate-700 space-y-1 list-disc list-inside">
+                                <li>Sazonalidade (Black Friday, etc)</li>
+                                <li>Devoluções e trocas</li>
+                                <li>Integração ERP/WMS</li>
+                                <li>Reclamações de clientes finais</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Mensagem Chave:</h4>
+                            <p class="text-sm text-slate-700 italic border-l-4 border-pink-500 pl-3">
+                                "THX escala com você, integra com seus sistemas e oferece rastreamento transparente ao seu cliente."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribuidor -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden card-shadow">
+                    <div class="bg-gradient-to-r from-amber-600 to-amber-700 px-4 sm:px-6 py-4 text-white">
+                        <h3 class="font-bold text-lg">🏪 Distribuidor</h3>
+                    </div>
+                    <div class="p-4 sm:p-6 space-y-4">
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Foco Principal:</h4>
+                            <ul class="text-sm text-slate-700 space-y-1 list-disc list-inside">
+                                <li>Frequência de coletas</li>
+                                <li>Cobertura geográfica ampla</li>
+                                <li>Flexibilidade de horários</li>
+                                <li>Consolidação de volumes</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Dores Comuns:</h4>
+                            <ul class="text-sm text-slate-700 space-y-1 list-disc list-inside">
+                                <li>Baixo volume por coleta</li>
+                                <li>Necessidade de cobertura regional</li>
+                                <li>Variação semanal de demanda</li>
+                                <li>Falta de flexibilidade de fornecedor</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 mb-2">Mensagem Chave:</h4>
+                            <p class="text-sm text-slate-700 italic border-l-4 border-amber-500 pl-3">
+                                "THX oferece coletas frequentes, cobertura em toda região, e agrupa seus volumes com inteligência."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dicas Finais -->
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border-l-4 border-orange-500 rounded-lg p-4 sm:p-6 card-shadow">
+                <h3 class="font-bold text-slate-900 mb-3 text-lg">Dicas de Ouro por Perfil</h3>
+                <div class="space-y-3 text-sm text-slate-700">
+                    <p>
+                        <span class="font-bold">Transportadora:</span> Fale sobre otimização de frota, redução de custo por km, e garantia de frequência. Eles pensam em número, não em relacionamento.
+                    </p>
+                    <p>
+                        <span class="font-bold">Embarcador:</span> Fale sobre segurança, SLA, e rastreamento. Mostre que vocês entendem a cadeia deles e como logística impacta o resultado.
+                    </p>
+                    <p>
+                        <span class="font-bold">E-commerce:</span> Mencione integração API, rastreamento ao cliente final, e escalabilidade. Eles vivem de satisfação do cliente.
+                    </p>
+                    <p>
+                        <span class="font-bold">Distribuidor:</span> Highlight flexibilidade, consolidação inteligente de cargas, e cobertura ampla. Eles querem parceiro que entende volumes pequenos.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-gradient-to-r from-slate-900 to-slate-800 text-white py-6 sm:py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm mb-6">
+                <div>
+                    <h4 class="font-bold mb-2">Sobre Esta Ferramenta</h4>
+                    <p class="text-slate-400">Cockpit de Reativação desenvolvido para apoiar Tayná e Gabrieli em suas operações de reativação de clientes THX.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-2">Recursos</h4>
+                    <ul class="text-slate-400 space-y-1">
+                        <li>Funil visual de reativação</li>
+                        <li>Scripts prontos para usar</li>
+                        <li>Quebra de objeções</li>
+                        <li>Templates WhatsApp e Email</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-2">Dúvidas?</h4>
+                    <p class="text-slate-400">Contacte o gerente de projetos para sugestões de melhorias ou dúvidas.</p>
+                </div>
+            </div>
+            <div class="border-t border-slate-700 pt-6 text-center text-slate-400 text-sm">
+                <p>Trinity DEV Senior | THX Group Logtech © 2025</p>
+                <p class="mt-1 text-xs">Ferramenta profissional de apoio comercial - Uso restrito ao time de vendas</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 sm:px-6 py-3 rounded-lg shadow-lg hidden z-50 toast">
+        <div class="flex items-center gap-2">
+            <span>✓</span>
+            <span>Copiado para a área de transferência!</span>
+        </div>
+    </div>
+
+    <script>
+        // Tab Navigation
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+
+                // Remove active class from all tabs and buttons
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                    content.classList.remove('active');
+                });
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('active');
+                });
+
+                // Add active class to clicked tab
+                document.getElementById(tabName).classList.remove('hidden');
+                document.getElementById(tabName).classList.add('active');
+                btn.classList.add('active');
+
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        });
+
+        // Copy to Clipboard Function
+        function copiarTexto(texto) {
+            navigator.clipboard.writeText(texto).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.remove('hidden');
+
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                }, 2000);
+            }).catch(err => {
+                alert('Erro ao copiar: ' + err);
+            });
+        }
+
+        // Toggle Objection Answers
+        function toggleObjection(button) {
+            const container = button.parentElement;
+            const answer = container.querySelector('.objection-response');
+            const icon = button.querySelector('span:last-child');
+
+            answer.classList.toggle('hidden');
+
+            if (answer.classList.contains('hidden')) {
+                icon.textContent = '➕';
+            } else {
+                icon.textContent = '➖';
+            }
+        }
+
+        // Checklist Toggle
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const label = this.closest('label');
+                if (this.checked) {
+                    label.classList.add('opacity-60');
+                    label.style.textDecoration = 'line-through';
+                } else {
+                    label.classList.remove('opacity-60');
+                    label.style.textDecoration = 'none';
+                }
+            });
+        });
+
+        // Keyboard shortcut for tab navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === '1') {
+                    document.querySelector('[data-tab="funil"]').click();
+                } else if (e.key === '2') {
+                    document.querySelector('[data-tab="scripts"]').click();
+                } else if (e.key === '3') {
+                    document.querySelector('[data-tab="objecoes"]').click();
+                } else if (e.key === '4') {
+                    document.querySelector('[data-tab="templates"]').click();
+                } else if (e.key === '5') {
+                    document.querySelector('[data-tab="checklist"]').click();
+                } else if (e.key === '6') {
+                    document.querySelector('[data-tab="perfis"]').click();
+                }
+            }
+        });
+
+        // Log initialization
+        console.log('Cockpit de Reativação THX Group carregado com sucesso!');
+        console.log('Versão: 1.0 | DEV Senior Trinity');
+    </script>
+
+</body>
 </html>
