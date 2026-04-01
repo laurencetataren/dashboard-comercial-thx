@@ -962,26 +962,11 @@ export default async function handler(req, res) {
       mesesDisponiveis.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
     }
 
-    // DEBUG TEMPORARIO: informacoes para diagnostico
-    const _debug = {
-      rawFlashFTLCount: rawFlashFTL.length,
-      rawFlashFTLSample: rawFlashFTL.slice(0, 3).map(t => ({
-        id: t.custom_id || t.id,
-        name: (t.name || '').substring(0, 50),
-        status: t.status?.status,
-        hasCustomFields: (t.custom_fields || []).length,
-        coletaField: t.custom_fields?.find(f => f.id === 'ee0f910c-b3dc-4e7f-8e5f-e00f0fa04707')?.value || 'NOT_FOUND'
-      })),
-      processedFaturadoCount: faturadoData.countCargas,
-      processedCloserFTLCount: closerFTLData.totalCargas
-    }
-
     const data = {
       timestamp: now.toISOString(),
       demo: false,
       mesAtual,
       mesFiltro,
-      _debug,
       mesesDisponiveis,
       openDeals,
       wonDeals: wonDeals.filter(d => d.mes === mesFiltro),
@@ -1005,8 +990,7 @@ export default async function handler(req, res) {
       tempoResposta
     }
 
-    // Cache desativado temporariamente para debug (reativar depois)
-    res.setHeader('Cache-Control', 'no-store, no-cache')
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
     return res.status(200).json(data)
   } catch (error) {
     console.error('Erro ao buscar dados do Pipedrive:', error)

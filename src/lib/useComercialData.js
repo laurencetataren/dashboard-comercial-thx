@@ -7,13 +7,20 @@ export default function useComercialData() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
+  // Le mes da URL query string (?mes=2026-03), ou usa mes atual como default
+  const [mesSelecionado, setMesSelecionado] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('mes') || null
+  })
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (mes) => {
     try {
       setLoading(true)
       setError(null)
 
-      const res = await fetch(API_URL)
+      const mesParam = mes || mesSelecionado
+      const url = mesParam ? `${API_URL}?mes=${mesParam}` : API_URL
+      const res = await fetch(url)
       if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`)
 
       const json = await res.json()
@@ -25,34 +32,32 @@ export default function useComercialData() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [mesSelecionado])
 
   useEffect(() => {
     fetchData()
     // Refresh a cada 5 minutos
-    const interval = setInterval(fetchData, 5 * 60 * 1000)
+    const interval = setInterval(() => fetchData(), 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [fetchData])
 
   // Metricas calculadas
   const metrics = data ? computeMetrics(data) : null
 
-  // Fetch com filtro de mes (para aba Clientes)
+  // Fetch com filtro de mes (troca global de mes)
   const fetchWithMes = useCallback(async (mes) => {
     try {
-      setLoading(true)
-      const url = mes ? `${API_URL}?mes=${mes}` : API_URL
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`Erro ${res.status}`)
-      const json = await res.json()
-      setData(json)
-      setLastUpdate(new Date())
+      setMesSelecionado(mes)
+      // Atualiza URL sem recarregar a pagina
+      const url = new URL(window.location.href)
+      if (mes) { url.searchParams.set('mes', mes) } else { url.searchParams.delete('mes') }
+      window.history.replaceState({}, '', url.toString())
+      // Fetch com o novo mes
+      await fetchData(mes)
     } catch (err) {
       setError(err.message)
-    } finally {
-      setLoading(false)
     }
-  }, [])
+  }, [fetchData])
 
   return { data, metrics, loading, error, lastUpdate, refresh: fetchData, fetchWithMes }
 }
