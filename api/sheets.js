@@ -701,11 +701,10 @@ async function clickupFetch(endpoint, params = {}) {
 }
 
 async function fetchFlashFTLTasks() {
-  // SOLUCAO DEFINITIVA: filtrar por statuses[] operacionais
-  // A lista Flash FTL tem 8000+ tasks. Paginacao padrao comeca pela mais antiga (CARGA-1).
-  // Filtros date_created_gt e date_updated_gt sao ignorados pela API /list/{id}/task.
-  // Unico filtro que funciona: statuses[] = busca apenas tasks nos status especificados.
-  // Exclui "faturado" e "finalizado" (milhares de tasks antigas ja arquivadas).
+  // Usa endpoint /team/{teamId}/task que suporta filtros de status e list_ids
+  // O endpoint /list/{listId}/task NAO suporta statuses[], date_created_gt, date_updated_gt
+  // (confirmado via debug: retorna 0 tasks com qualquer filtro)
+  const TEAM_ID = '9007070798'
   const OPERATIONAL_STATUSES = [
     'a contratar', 'em contratacao', 'em carregamento',
     'em transito', 'em descarga', 'entregues',
@@ -717,10 +716,12 @@ async function fetchFlashFTLTasks() {
   let page = 0
 
   while (page < 8) {
-    const url = new URL(`https://api.clickup.com/api/v2/list/${CLICKUP_FLASH_FTL_LIST}/task`)
+    const url = new URL(`https://api.clickup.com/api/v2/team/${TEAM_ID}/task`)
     url.searchParams.set('page', String(page))
     url.searchParams.set('limit', '100')
     url.searchParams.set('include_closed', 'true')
+    url.searchParams.set('subtasks', 'false')
+    url.searchParams.set('list_ids[]', CLICKUP_FLASH_FTL_LIST)
     for (const s of OPERATIONAL_STATUSES) {
       url.searchParams.append('statuses[]', s)
     }
