@@ -706,12 +706,13 @@ async function fetchFlashFTLTasks() {
   const allTasks = []
   let page = 0
 
-  while (page < 3) {
+  while (page < 5) {
     const url = new URL(`https://api.clickup.com/api/v2/list/${CLICKUP_FLASH_FTL_LIST}/task`)
     url.searchParams.set('page', String(page))
     url.searchParams.set('limit', '100')
     url.searchParams.set('include_closed', 'true')
-    url.searchParams.set('subtasks', 'true')
+    url.searchParams.set('order_by', 'created')
+    url.searchParams.set('reverse', 'true')
 
     const res = await fetch(url.toString(), {
       headers: { 'Authorization': CLICKUP_API_TOKEN }
