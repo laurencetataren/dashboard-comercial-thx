@@ -701,22 +701,29 @@ async function clickupFetch(endpoint, params = {}) {
 }
 
 async function fetchFlashFTLTasks() {
-  // Busca tasks do Flash FTL atualizadas nos ultimos 90 dias
-  // date_updated_gt e mais confiavel que date_created_gt no ClickUp API
-  // Tasks de marco 2026 (CARGA-7xxx) foram atualizadas em marco/abril -> incluidas
-  // Evita paginar pela lista inteira de 8000+ tasks
+  // SOLUCAO DEFINITIVA: filtrar por statuses[] operacionais
+  // A lista Flash FTL tem 8000+ tasks. Paginacao padrao comeca pela mais antiga (CARGA-1).
+  // Filtros date_created_gt e date_updated_gt sao ignorados pela API /list/{id}/task.
+  // Unico filtro que funciona: statuses[] = busca apenas tasks nos status especificados.
+  // Exclui "faturado" e "finalizado" (milhares de tasks antigas ja arquivadas).
+  const OPERATIONAL_STATUSES = [
+    'a contratar', 'em contratacao', 'em carregamento',
+    'em transito', 'em descarga', 'entregues',
+    'pendente faturamento', 'liberado faturamento',
+    'no show', 'cancelada'
+  ]
+
   const allTasks = []
   let page = 0
-
-  // 90 dias atras em milissegundos (~3 meses de historico)
-  const noventaDiasAtrasMs = Date.now() - (90 * 24 * 60 * 60 * 1000)
 
   while (page < 8) {
     const url = new URL(`https://api.clickup.com/api/v2/list/${CLICKUP_FLASH_FTL_LIST}/task`)
     url.searchParams.set('page', String(page))
     url.searchParams.set('limit', '100')
     url.searchParams.set('include_closed', 'true')
-    url.searchParams.set('date_updated_gt', String(noventaDiasAtrasMs))
+    for (const s of OPERATIONAL_STATUSES) {
+      url.searchParams.append('statuses[]', s)
+    }
 
     const res = await fetch(url.toString(), {
       headers: { 'Authorization': CLICKUP_API_TOKEN }
