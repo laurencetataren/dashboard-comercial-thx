@@ -12,6 +12,15 @@ const CLICKUP_FRETE_EMPRESA_FIELD = 'b0d60416-41fd-4dcd-95f8-8d44db267745'
 const CLICKUP_COLETA_FIELD = 'ee0f910c-b3dc-4e7f-8e5f-e00f0fa04707'
 const CLICKUP_MOTIVO_NOSHOW_FIELD = '947cdd58-3c6d-4d78-a0ce-b303af389b69'
 
+// Closer FT — campos adicionais para Kanban e Eficiencia
+const CLICKUP_FRETE_MOTORISTA_FIELD = '09a2946d-0498-4eb1-b66d-678bc6c3acc7'
+const CLICKUP_VALOR_FECHADO_FIELD = 'c9b713ec-ffd9-4d23-8a8e-d18fd6849087'
+const CLICKUP_CAIXA_PROSPECCAO_FIELD = '8d93aca7-ad85-45e5-bc45-f861eea26fc2'
+const CLICKUP_CIDADE_ORIGEM_FIELD = '8dff6d61-3942-42dd-a82b-faa167984dd2'
+const CLICKUP_CIDADE_DESTINO_FIELD = '63543a19-7885-4412-8bb3-4a394ac6a188'
+const CLICKUP_CLOSER_FIELD = 'cee9b9fe-729f-4ed2-81a5-30a70ecf7df7'
+const CLICKUP_CLIENTE_FIELD = '35c290fb-079e-4db5-9af9-f624b3e84292'
+
 // Statuses que indicam que a carga PASSOU por "em transito" (executada)
 const PASSED_EM_TRANSITO = ['em transito', 'entregues', 'liberado faturamento', 'faturado', 'finalizado']
 // Statuses de perda na execucao
@@ -691,9 +700,9 @@ async function clickupFetch(endpoint, params = {}) {
   return res.json()
 }
 
-async function fetchFlashFTLTasks(mesFiltro) {
-  // Busca TODAS as tasks do Flash FTL (sem filtro de status) incluindo fechadas
-  // Logica: faturado = TUDO que passou por "em transito"
+async function fetchFlashFTLTasks() {
+  // Busca TODAS as tasks do Flash FTL (sem filtro de status/mes) incluindo fechadas
+  // Retorna raw tasks com custom_fields completos para reuso em Faturado + Kanban
   const allTasks = []
   let page = 0
 
@@ -718,58 +727,53 @@ async function fetchFlashFTLTasks(mesFiltro) {
     page++
   }
 
+  return allTasks
+}
+
+// Helper: extrai valor de campo customizado pelo ID
+function getTaskField(task, fieldId) {
+  const f = task.custom_fields?.find(f => f.id === fieldId)
+  return f?.value ?? null
+}
+
+function processFlashFTLData(rawTasks, mesFiltro) {
   // Filtra por mes usando campo Coleta
   const [ano, mesNum] = mesFiltro.split('-').map(Number)
-
-  const filtered = allTasks.filter(task => {
-    const coletaField = task.custom_fields?.find(f => f.id === CLICKUP_COLETA_FIELD)
-    if (!coletaField || !coletaField.value) return false
-    const coletaDate = new Date(Number(coletaField.value))
-    return coletaDate.getFullYear() === ano && (coletaDate.getMonth() + 1) === mesNum
+  const mesFiltered = rawTasks.filter(task => {
+    const coletaMs = getTaskField(task, CLICKUP_COLETA_FIELD)
+    if (!coletaMs) return false
+    const d = new Date(Number(coletaMs))
+    return d.getFullYear() === ano && (d.getMonth() + 1) === mesNum
   })
 
-  // Exclui tasks com status "a contratar" (ainda no pipeline, nao entraram em execucao)
-  const execucaoTasks = filtered.filter(task => {
-    const status = (task.status?.status || '').toLowerCase()
-    return status !== 'a contratar'
-  })
+  // Exclui "a contratar" (ainda nao entrou em execucao)
+  const execucao = mesFiltered.filter(t => (t.status?.status || '').toLowerCase() !== 'a contratar')
 
-  // Mapeia campos customizados
-  return execucaoTasks.map(task => {
-    const freteField = task.custom_fields?.find(f => f.id === CLICKUP_FRETE_EMPRESA_FIELD)
+  // Mapeia para objeto simplificado (compativel com TabCloserFTL existente)
+  const tasks = execucao.map(task => {
+    const freteVal = parseFloat(getTaskField(task, CLICKUP_FRETE_EMPRESA_FIELD)) || 0
     const noShowField = task.custom_fields?.find(f => f.id === CLICKUP_MOTIVO_NOSHOW_FIELD)
-    const coletaField = task.custom_fields?.find(f => f.id === CLICKUP_COLETA_FIELD)
-
-    const freteValor = freteField?.value ? parseFloat(freteField.value) : 0
     const motivoNoShow = noShowField?.value ? (noShowField.type_config?.options?.find(o => o.orderindex === noShowField.value)?.name || '') : ''
-    const coletaDate = coletaField?.value ? new Date(Number(coletaField.value)).toISOString().substring(0, 10) : ''
-
+    const coletaMs = getTaskField(task, CLICKUP_COLETA_FIELD)
+    const coletaDate = coletaMs ? new Date(Number(coletaMs)).toISOString().substring(0, 10) : ''
     return {
       id: task.id,
       customId: task.custom_id || '',
       nome: task.name || '',
       status: (task.status?.status || '').toLowerCase(),
-      freteEmpresa: freteValor,
+      freteEmpresa: freteVal,
       motivoNoShow,
       dataColeta: coletaDate
     }
   })
-}
 
-function processFlashFTLData(tasks) {
-  // Faturado = tudo que PASSOU por "em transito"
   const faturadoTasks = tasks.filter(t => PASSED_EM_TRANSITO.includes(t.status))
   const totalFaturado = faturadoTasks.reduce((sum, t) => sum + t.freteEmpresa, 0)
-
-  // Closer FTL = perdas na execucao (no show + cancelada)
   const noShowTasks = tasks.filter(t => t.status === 'no show')
   const canceladaTasks = tasks.filter(t => t.status === 'cancelada')
   const lostTasks = [...noShowTasks, ...canceladaTasks]
-
   const totalCargas = tasks.length
   const executadas = faturadoTasks.length
-  const noShowCount = noShowTasks.length
-  const canceladaCount = canceladaTasks.length
   const conversionPct = totalCargas > 0 ? Math.round((executadas / totalCargas) * 1000) / 10 : 0
 
   return {
@@ -781,8 +785,8 @@ function processFlashFTLData(tasks) {
     closerFTL: {
       totalCargas,
       executadas,
-      noShowCount,
-      canceladaCount,
+      noShowCount: noShowTasks.length,
+      canceladaCount: canceladaTasks.length,
       lostCount: lostTasks.length,
       conversionPct,
       noShowTasks,
@@ -790,6 +794,74 @@ function processFlashFTLData(tasks) {
       lostTasks
     }
   }
+}
+
+function processCloserKanban(rawTasks, mesFiltro) {
+  // Apenas tasks reais: nome contém " - " (formato "Cliente - Origem/Destino")
+  const realTasks = rawTasks.filter(t => t.name && t.name.includes(' - '))
+
+  // Status finalizados operacionalmente — nao aparecem no Kanban
+  const DONE_STATUSES = new Set(['faturado', 'entregues', 'liberado faturamento', 'finalizado', 'em descarga'])
+
+  const mapped = realTasks.map(task => {
+    const status = (task.status?.status || '').toLowerCase()
+    const freteMotorista = parseFloat(getTaskField(task, CLICKUP_FRETE_MOTORISTA_FIELD)) || 0
+    const valorFechado = parseFloat(getTaskField(task, CLICKUP_VALOR_FECHADO_FIELD)) || 0
+    const caixaRaw = getTaskField(task, CLICKUP_CAIXA_PROSPECCAO_FIELD)
+    const saldo = caixaRaw !== null
+      ? parseFloat(caixaRaw)
+      : (freteMotorista > 0 && valorFechado > 0 ? freteMotorista - valorFechado : null)
+
+    // Cliente (dropdown — value é indice numerico da lista de opcoes)
+    const clienteField = task.custom_fields?.find(f => f.id === CLICKUP_CLIENTE_FIELD)
+    const clienteIdx = clienteField?.value
+    let clienteNome = ''
+    if (clienteField?.type_config?.options) {
+      if (typeof clienteIdx === 'number') clienteNome = clienteField.type_config.options[clienteIdx]?.name || ''
+      else if (typeof clienteIdx === 'string') clienteNome = clienteField.type_config.options.find(o => o.id === clienteIdx)?.name || clienteIdx
+    }
+    if (!clienteNome) clienteNome = task.name.split(' - ')[0] || ''
+
+    // Closer (users array)
+    const closerVal = getTaskField(task, CLICKUP_CLOSER_FIELD)
+    const closers = Array.isArray(closerVal)
+      ? closerVal.map(u => (u.username || u.name || '').split(' ')[0]).filter(Boolean)
+      : []
+
+    // Data de coleta
+    const coletaMs = getTaskField(task, CLICKUP_COLETA_FIELD)
+    const coletaDate = coletaMs ? new Date(Number(coletaMs)).toISOString().substring(0, 10) : null
+    const coletaMes = coletaDate ? coletaDate.substring(0, 7) : null
+
+    return {
+      id: task.id,
+      customId: task.custom_id || task.id,
+      nome: task.name,
+      status,
+      cliente: clienteNome,
+      origem: getTaskField(task, CLICKUP_CIDADE_ORIGEM_FIELD) || '',
+      destino: getTaskField(task, CLICKUP_CIDADE_DESTINO_FIELD) || '',
+      coleta: coletaDate,
+      coletaMes,
+      closer: closers.join(' / '),
+      freteMotorista,
+      valorFechado,
+      saldo,
+      isNoShow: status === 'no show',
+      url: task.url || ''
+    }
+  })
+
+  // Kanban: todas as cargas ativas (inclui no show, exclui finalizadas e canceladas)
+  const kanban = mapped.filter(t => !DONE_STATUSES.has(t.status) && t.status !== 'cancelada')
+
+  // Eficiencia: cargas do mes selecionado com negociacao fechada + no shows do mes
+  const eficiencia = mapped.filter(t => {
+    const noMes = !mesFiltro || t.coletaMes === mesFiltro
+    return noMes && (t.valorFechado > 0 || t.isNoShow)
+  })
+
+  return { kanban, eficiencia }
 }
 
 // Metas (hardcoded por enquanto, pode migrar para planilha depois)
@@ -842,7 +914,7 @@ export default async function handler(req, res) {
 
     // Busca TODOS os dados em paralelo (10 chamadas simultaneas)
     const clickupPromise = CLICKUP_API_TOKEN
-      ? fetchFlashFTLTasks(mesFiltro).catch(err => { console.error('ClickUp error:', err); return [] })
+      ? fetchFlashFTLTasks().catch(err => { console.error('ClickUp error:', err); return [] })
       : Promise.resolve([])
 
     const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs, rawPending, rawActivities30d, rawOverdue] = await Promise.all([
@@ -863,7 +935,8 @@ export default async function handler(req, res) {
     const lostDeals = processLostDeals(rawLost, mesAtual)
     const atividades = buildAtividades(rawActivities)
     const clientesAtivos = processClientesAtivos(rawOrgs, wonDeals, lostDeals, mesFiltro)
-    const { faturado: faturadoData, closerFTL: closerFTLData } = processFlashFTLData(rawFlashFTL)
+    const { faturado: faturadoData, closerFTL: closerFTLData } = processFlashFTLData(rawFlashFTL, mesFiltro)
+    const closerFT = processCloserKanban(rawFlashFTL, mesFiltro)
 
     // Processa indicadores de qualidade
     const atividadesStatus = buildAtividadesStatus(rawActivities, rawPending, rawOverdue)
@@ -898,6 +971,7 @@ export default async function handler(req, res) {
       clientesAtivos,
       faturado: faturadoData,
       closerFTL: closerFTLData,
+      closerFT,
       // Indicadores de qualidade
       atividadesStatus,
       dealsOrfaos,

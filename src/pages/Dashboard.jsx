@@ -3,7 +3,8 @@ import {
   BarChart3, Funnel, Users, ArrowLeftRight, TrendingUp,
   RefreshCw, AlertTriangle, Clock, Target, DollarSign,
   Award, XCircle, ArrowUpRight, ArrowDownRight, Zap,
-  ChevronRight, Layers, Truck, Ban, CheckCircle, Phone, Activity
+  ChevronRight, Layers, Truck, Ban, CheckCircle, Phone, Activity,
+  Columns2, TrendingDown, ExternalLink
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -21,6 +22,7 @@ const TABS = [
   { id: 'funil', label: 'Funil', icon: Funnel },
   { id: 'insideSales', label: 'Inside Sales', icon: Users },
   { id: 'closerFTL', label: 'Closer FTL', icon: Truck },
+  { id: 'closerFT', label: 'Closer FT', icon: Columns2 },
   { id: 'clientes', label: 'Clientes', icon: Users },
   { id: 'projecao', label: 'Projecao', icon: TrendingUp },
 ]
@@ -82,6 +84,7 @@ export default function Dashboard() {
     funil: TabFunil,
     insideSales: TabInsideSales,
     closerFTL: TabCloserFTL,
+    closerFT: TabCloserFT,
     clientes: TabClientes,
     projecao: TabProjecao,
   }[activeTab]
@@ -1507,6 +1510,232 @@ function TabCloserFTL({ data }) {
                   <tr><td colSpan={6} className="py-8 text-center text-white/20 text-sm">Nenhuma carga perdida no periodo</td></tr>
                 )}
               </tbody>
+            </table>
+          </div>
+        </div>
+      </GlassCard>
+    </div>
+  )
+}
+
+// =============================================
+// TAB: CLOSER FT — Kanban + Eficiencia
+// =============================================
+
+const KANBAN_COLS = [
+  { id: 'a contratar',    label: 'A Contratar',    color: '#6b7280', desc: 'Aguardando Closer' },
+  { id: 'em contratação', label: 'Em Contratação',  color: '#3b82f6', desc: 'Prospectando motorista' },
+  { id: 'em carregamento',label: 'Em Carregamento', color: '#f59e0b', desc: 'Motorista contratado' },
+  { id: 'em transito',    label: 'Em Transito',     color: '#10b981', desc: 'Carga saiu' },
+  { id: 'no show',        label: 'No Show',         color: '#ef4444', desc: 'Oportunidade perdida' },
+]
+
+function KanbanCard({ task }) {
+  const isNoShow = task.status === 'no show'
+  const saldoPositivo = task.saldo !== null && task.saldo >= 0
+  return (
+    <div className={`rounded-xl p-3.5 mb-2.5 border transition-all ${
+      isNoShow
+        ? 'bg-rose-500/10 border-rose-500/30'
+        : 'bg-white/[0.04] border-white/[0.07] hover:border-white/[0.12]'
+    }`}>
+      {/* ID + link */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-mono text-white/30">{task.customId}</span>
+        {task.url && (
+          <a href={task.url} target="_blank" rel="noopener noreferrer" className="text-white/20 hover:text-cyan-400 transition-colors">
+            <ExternalLink size={10} />
+          </a>
+        )}
+      </div>
+
+      {/* Cliente */}
+      <p className={`text-sm font-semibold leading-tight mb-1.5 ${isNoShow ? 'text-rose-300' : 'text-white/90'}`}>
+        {task.cliente || task.nome.split(' - ')[0]}
+      </p>
+
+      {/* Rota */}
+      {(task.origem || task.destino) && (
+        <p className="text-[11px] text-white/40 mb-2 leading-tight">
+          {task.origem}{task.origem && task.destino ? ' → ' : ''}{task.destino}
+        </p>
+      )}
+
+      {/* Data coleta + closer */}
+      <div className="flex items-center justify-between text-[10px] text-white/30 mb-2">
+        <span>{task.coleta ? new Date(task.coleta + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--'}</span>
+        {task.closer && <span className="text-cyan-400/60">{task.closer}</span>}
+      </div>
+
+      {/* Frete Motorista + Saldo */}
+      {task.freteMotorista > 0 && (
+        <div className="flex items-center justify-between mt-1 pt-2 border-t border-white/[0.05]">
+          <span className="text-[10px] text-white/25">Teto: {fmtCurrency(task.freteMotorista)}</span>
+          {isNoShow ? (
+            <span className="text-[10px] font-bold text-rose-400 uppercase">No Show</span>
+          ) : task.saldo !== null ? (
+            <span className={`text-[11px] font-bold ${saldoPositivo ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {saldoPositivo ? '+' : ''}{fmtCurrency(task.saldo)}
+            </span>
+          ) : null}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TabCloserFT({ data }) {
+  const ft = data.closerFT || { kanban: [], eficiencia: [] }
+  const { kanban, eficiencia } = ft
+
+  // Agrupa kanban por status
+  const byStatus = {}
+  KANBAN_COLS.forEach(c => { byStatus[c.id] = [] })
+  kanban.forEach(t => {
+    const col = KANBAN_COLS.find(c => c.id === t.status)
+    if (col) byStatus[col.id].push(t)
+    else {
+      // Status desconhecido — coloca em "a contratar" como fallback
+      if (!byStatus['outros']) byStatus['outros'] = []
+      byStatus['outros'].push(t)
+    }
+  })
+
+  // KPIs Kanban
+  const totalAtivas = kanban.filter(t => t.status !== 'no show').length
+  const totalNoShow = kanban.filter(t => t.status === 'no show').length
+  const emContratacao = byStatus['em contratação']?.length || 0
+
+  // KPIs Eficiencia
+  const efiNeg = eficiencia.filter(t => !t.isNoShow)
+  const efiNoShow = eficiencia.filter(t => t.isNoShow)
+  const totalDesejado = efiNeg.reduce((s, t) => s + t.freteMotorista, 0)
+  const totalFechado = efiNeg.reduce((s, t) => s + t.valorFechado, 0)
+  const totalSaldo = efiNeg.reduce((s, t) => s + (t.saldo || 0), 0)
+  const totalNoShowValor = efiNoShow.reduce((s, t) => s + t.freteMotorista, 0)
+
+  return (
+    <div className="space-y-8">
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KPICard label="Cargas Ativas" value={totalAtivas} icon={Truck} color="cyan" />
+        <KPICard label="Em Contratacao" value={emContratacao} icon={Activity} color="blue" />
+        <KPICard label="No Show (Kanban)" value={totalNoShow} icon={Ban} color="rose" />
+        <KPICard label="Saldo do Mes" value={fmtCurrencyShort(totalSaldo)} icon={totalSaldo >= 0 ? ArrowUpRight : ArrowDownRight} color={totalSaldo >= 0 ? 'emerald' : 'rose'} />
+      </div>
+
+      {/* Kanban */}
+      <GlassCard>
+        <div className="p-6">
+          <SectionTitle icon={Columns2} description="Status de cada carga no pipeline do Closer">Kanban de Demandas</SectionTitle>
+          {kanban.length === 0 ? (
+            <div className="py-12 text-center text-white/20 text-sm">Nenhuma carga ativa no momento</div>
+          ) : (
+            <div className="mt-4 grid gap-4" style={{ gridTemplateColumns: `repeat(${KANBAN_COLS.length}, minmax(200px, 1fr))`, overflowX: 'auto' }}>
+              {KANBAN_COLS.map(col => {
+                const cards = byStatus[col.id] || []
+                return (
+                  <div key={col.id} className="min-w-[200px]">
+                    {/* Header da coluna */}
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b" style={{ borderColor: col.color + '30' }}>
+                      <div className="w-2 h-2 rounded-full" style={{ background: col.color }} />
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: col.color }}>
+                        {col.label}
+                      </span>
+                      <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: col.color + '20', color: col.color }}>
+                        {cards.length}
+                      </span>
+                    </div>
+                    {/* Cards */}
+                    <div>
+                      {cards.length === 0 ? (
+                        <div className="text-center py-4 text-white/15 text-xs border border-dashed border-white/[0.05] rounded-xl">vazio</div>
+                      ) : (
+                        cards.map(t => <KanbanCard key={t.id} task={t} />)
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </GlassCard>
+
+      {/* Tabela de Eficiencia */}
+      <GlassCard>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <SectionTitle icon={TrendingDown} description={`${eficiencia.length} cargas | Economia: ${fmtCurrency(totalSaldo)}`}>
+              Eficiencia de Negociacao
+            </SectionTitle>
+            {efiNoShow.length > 0 && (
+              <span className="text-xs text-rose-400 font-medium">
+                {efiNoShow.length} no show = {fmtCurrency(totalNoShowValor)} perdido
+              </span>
+            )}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">ID</th>
+                  <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Cliente</th>
+                  <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Data</th>
+                  <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Rota</th>
+                  <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Frete Desejado</th>
+                  <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Frete Negociado</th>
+                  <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Saldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {eficiencia.map((t, i) => {
+                  const isNS = t.isNoShow
+                  const sPos = !isNS && t.saldo !== null && t.saldo >= 0
+                  return (
+                    <tr key={t.id || i} className={`border-b border-white/[0.03] transition-colors ${isNS ? 'bg-rose-500/[0.06] hover:bg-rose-500/[0.10]' : 'hover:bg-white/[0.02]'}`}>
+                      <td className={`py-3 px-3 text-xs font-mono ${isNS ? 'text-rose-400/70' : 'text-white/30'}`}>{t.customId}</td>
+                      <td className={`py-3 px-3 font-medium ${isNS ? 'text-rose-300' : 'text-white/80'}`}>{t.cliente}</td>
+                      <td className={`py-3 px-3 text-xs ${isNS ? 'text-rose-400/60' : 'text-white/40'}`}>
+                        {t.coleta ? new Date(t.coleta + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--'}
+                      </td>
+                      <td className={`py-3 px-3 text-xs ${isNS ? 'text-rose-400/60' : 'text-white/40'}`}>
+                        {t.origem && t.destino ? `${t.origem} → ${t.destino}` : (t.origem || t.destino || '--')}
+                      </td>
+                      <td className={`py-3 px-3 text-right font-medium ${isNS ? 'text-rose-400/80' : 'text-white/60'}`}>
+                        {t.freteMotorista > 0 ? fmtCurrency(t.freteMotorista) : '--'}
+                      </td>
+                      <td className={`py-3 px-3 text-right font-bold ${isNS ? 'text-rose-400' : 'text-white/80'}`}>
+                        {isNS ? 'NO SHOW' : (t.valorFechado > 0 ? fmtCurrency(t.valorFechado) : '--')}
+                      </td>
+                      <td className={`py-3 px-3 text-right font-bold text-sm ${
+                        isNS ? 'text-rose-400' : sPos ? 'text-emerald-400' : 'text-rose-400'
+                      }`}>
+                        {isNS
+                          ? (t.freteMotorista > 0 ? `-${fmtCurrency(t.freteMotorista)}` : '--')
+                          : t.saldo !== null ? `${t.saldo >= 0 ? '+' : ''}${fmtCurrency(t.saldo)}` : '--'
+                        }
+                      </td>
+                    </tr>
+                  )
+                })}
+                {eficiencia.length === 0 && (
+                  <tr><td colSpan={7} className="py-8 text-center text-white/20 text-sm">Nenhuma negociacao no periodo</td></tr>
+                )}
+              </tbody>
+              {eficiencia.length > 0 && (
+                <tfoot>
+                  <tr className="border-t border-white/[0.08]">
+                    <td colSpan={4} className="py-3 px-3 text-xs text-white/30 font-medium">{efiNeg.length} negociadas{efiNoShow.length > 0 ? ` + ${efiNoShow.length} no show` : ''}</td>
+                    <td className="py-3 px-3 text-right text-xs font-bold text-white/60">{fmtCurrency(totalDesejado)}</td>
+                    <td className="py-3 px-3 text-right text-xs font-bold text-white/60">{totalFechado > 0 ? fmtCurrency(totalFechado) : '--'}</td>
+                    <td className={`py-3 px-3 text-right text-sm font-bold ${totalSaldo >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {totalSaldo >= 0 ? '+' : ''}{fmtCurrency(totalSaldo)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
