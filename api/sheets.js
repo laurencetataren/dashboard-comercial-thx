@@ -701,21 +701,22 @@ async function clickupFetch(endpoint, params = {}) {
 }
 
 async function fetchFlashFTLTasks() {
-  // Busca tasks do Flash FTL criadas nos ultimos 6 meses
-  // Usa date_created_gt para garantir que chegamos nas tasks recentes (ex: Marco 2026 = CARGA-7xxx)
-  // sem depender de ordenacao/paginacao que nao alcancaria tasks novas na lista de 8000+
+  // Busca tasks do Flash FTL atualizadas nos ultimos 90 dias
+  // date_updated_gt e mais confiavel que date_created_gt no ClickUp API
+  // Tasks de marco 2026 (CARGA-7xxx) foram atualizadas em marco/abril -> incluidas
+  // Evita paginar pela lista inteira de 8000+ tasks
   const allTasks = []
   let page = 0
 
-  // 6 meses atras em milissegundos
-  const seiseMesesAtrasMs = Date.now() - (6 * 30 * 24 * 60 * 60 * 1000)
+  // 90 dias atras em milissegundos (~3 meses de historico)
+  const noventaDiasAtrasMs = Date.now() - (90 * 24 * 60 * 60 * 1000)
 
-  while (page < 15) {
+  while (page < 8) {
     const url = new URL(`https://api.clickup.com/api/v2/list/${CLICKUP_FLASH_FTL_LIST}/task`)
     url.searchParams.set('page', String(page))
     url.searchParams.set('limit', '100')
     url.searchParams.set('include_closed', 'true')
-    url.searchParams.set('date_created_gt', String(seiseMesesAtrasMs))
+    url.searchParams.set('date_updated_gt', String(noventaDiasAtrasMs))
 
     const res = await fetch(url.toString(), {
       headers: { 'Authorization': CLICKUP_API_TOKEN }
@@ -985,8 +986,8 @@ export default async function handler(req, res) {
       tempoResposta
     }
 
-    // Cache 5 minutos
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
+    // Cache desativado temporariamente para debug (reativar depois)
+    res.setHeader('Cache-Control', 'no-store, no-cache')
     return res.status(200).json(data)
   } catch (error) {
     console.error('Erro ao buscar dados do Pipedrive:', error)
