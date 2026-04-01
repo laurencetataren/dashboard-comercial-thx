@@ -701,18 +701,21 @@ async function clickupFetch(endpoint, params = {}) {
 }
 
 async function fetchFlashFTLTasks() {
-  // Busca TODAS as tasks do Flash FTL (sem filtro de status/mes) incluindo fechadas
-  // Retorna raw tasks com custom_fields completos para reuso em Faturado + Kanban
+  // Busca tasks do Flash FTL criadas nos ultimos 6 meses
+  // Usa date_created_gt para garantir que chegamos nas tasks recentes (ex: Marco 2026 = CARGA-7xxx)
+  // sem depender de ordenacao/paginacao que nao alcancaria tasks novas na lista de 8000+
   const allTasks = []
   let page = 0
 
-  while (page < 5) {
+  // 6 meses atras em milissegundos
+  const seiseMesesAtrasMs = Date.now() - (6 * 30 * 24 * 60 * 60 * 1000)
+
+  while (page < 15) {
     const url = new URL(`https://api.clickup.com/api/v2/list/${CLICKUP_FLASH_FTL_LIST}/task`)
     url.searchParams.set('page', String(page))
     url.searchParams.set('limit', '100')
     url.searchParams.set('include_closed', 'true')
-    url.searchParams.set('order_by', 'created')
-    url.searchParams.set('reverse', 'true')
+    url.searchParams.set('date_created_gt', String(seiseMesesAtrasMs))
 
     const res = await fetch(url.toString(), {
       headers: { 'Authorization': CLICKUP_API_TOKEN }
