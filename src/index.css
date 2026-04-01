@@ -12,6 +12,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -27,6 +28,7 @@ body {
   background: rgba(0, 210, 255, 0.4);
 }
 
+/* Recharts tooltip */
 .recharts-tooltip-wrapper {
   outline: none !important;
 }

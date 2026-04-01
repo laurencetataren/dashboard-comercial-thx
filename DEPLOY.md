@@ -18,14 +18,14 @@
 2. Importar no Vercel (https://vercel.com/new)
 3. Framework Preset: Vite
 4. Environment Variables:
-   - \`GOOGLE_SHEET_ID\` = ID da Google Sheet
-   - \`GOOGLE_SHEETS_API_KEY\` = API Key do Google Cloud
+   - `GOOGLE_SHEET_ID` = ID da Google Sheet
+   - `GOOGLE_SHEETS_API_KEY` = API Key do Google Cloud
 5. Deploy!
 
 ### 3. Modo Demo (sem Google Sheets)
 
 O app funciona sem Google Sheets configurado, usando dados mock para demonstracao.
-Basta rodar \`npm run dev\` sem configurar as env vars.
+Basta rodar `npm run dev` sem configurar as env vars.
 
 ### Stack
 
@@ -38,7 +38,7 @@ Basta rodar \`npm run dev\` sem configurar as env vars.
 
 ### Estrutura
 
-\`\`\`
+```
 dashboard-comercial/
   api/
     sheets.js          # Vercel serverless function (Google Sheets -> JSON)
@@ -59,4 +59,4 @@ dashboard-comercial/
   package.json
   vite.config.js
   vercel.json
-\`\`\`
+```
