@@ -702,8 +702,8 @@ async function clickupFetch(endpoint, params = {}) {
 
 async function fetchFlashFTLTasks() {
   // Usa endpoint /team/{teamId}/task que suporta filtros de status e list_ids
-  // O endpoint /list/{listId}/task NAO suporta statuses[], date_created_gt, date_updated_gt
-  // (confirmado via debug: retorna 0 tasks com qualquer filtro)
+  // IMPORTANTE: URL construida manualmente para evitar encoding de [] como %5B%5D
+  // (URLSearchParams codifica colchetes e ClickUp API ignora params com %5B%5D)
   const TEAM_ID = '9007070798'
   const OPERATIONAL_STATUSES = [
     'a contratar', 'em contratacao', 'em carregamento',
@@ -715,18 +715,14 @@ async function fetchFlashFTLTasks() {
   const allTasks = []
   let page = 0
 
-  while (page < 8) {
-    const url = new URL(`https://api.clickup.com/api/v2/team/${TEAM_ID}/task`)
-    url.searchParams.set('page', String(page))
-    url.searchParams.set('limit', '100')
-    url.searchParams.set('include_closed', 'true')
-    url.searchParams.set('subtasks', 'false')
-    url.searchParams.set('list_ids[]', CLICKUP_FLASH_FTL_LIST)
-    for (const s of OPERATIONAL_STATUSES) {
-      url.searchParams.append('statuses[]', s)
-    }
+  // Monta string de statuses com colchetes literais (nao encoded)
+  const statusParams = OPERATIONAL_STATUSES.map(s => `statuses[]=${encodeURIComponent(s)}`).join('&')
 
-    const res = await fetch(url.toString(), {
+  while (page < 8) {
+    // Constroi URL manualmente para manter [] literais
+    const fullUrl = `https://api.clickup.com/api/v2/team/${TEAM_ID}/task?page=${page}&limit=100&include_closed=true&subtasks=false&list_ids[]=${CLICKUP_FLASH_FTL_LIST}&${statusParams}`
+
+    const res = await fetch(fullUrl, {
       headers: { 'Authorization': CLICKUP_API_TOKEN }
     })
     if (!res.ok) {
