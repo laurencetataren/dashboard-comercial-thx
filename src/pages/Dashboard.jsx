@@ -313,8 +313,8 @@ function TabVisaoGeral({ data, metrics }) {
         const metaFaturado = metrics.metaValor || 0
         const pctFaturadoMeta = metaFaturado > 0 ? Math.round((totalFaturado / metaFaturado) * 1000) / 10 : 0
         const pctVendidoFaturado = totalVendido > 0 ? Math.round((totalFaturado / totalVendido) * 1000) / 10 : 0
-        const perdas = totalVendido - totalFaturado
-        const perdasPositivo = perdas > 0 ? perdas : 0
+        const lostTasksList = data?.closerFTL?.lostTasks || []
+        const perdasPositivo = lostTasksList.reduce((sum, t) => sum + (t.freteEmpresa || 0), 0)
 
         const fatColor = pctFaturadoMeta >= 100 ? 'emerald' : pctFaturadoMeta >= 80 ? 'amber' : 'rose'
         const fatColorHex = pctFaturadoMeta >= 100 ? '#10b981' : pctFaturadoMeta >= 80 ? '#f59e0b' : '#ef4444'
