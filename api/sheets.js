@@ -700,6 +700,36 @@ async function clickupFetch(endpoint, params = {}) {
   return res.json()
 }
 
+async function fetchTaskComments(taskId) {
+  try {
+    const res = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/comment`, {
+      headers: { 'Authorization': CLICKUP_API_TOKEN }
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.comments || []
+  } catch (e) {
+    return []
+  }
+}
+
+function extractValorFechado(comments) {
+  // Captura padroes: "Negociado R$2.400", "Valor fechado R$10.000", "fechado R$X", "negociado R$X"
+  // Formato brasileiro: ponto = separador de milhar, virgula = decimal
+  for (const comment of comments) {
+    const text = comment.comment_text || ''
+    const match = text.match(/(?:negociado|fechado)\s*r\$\s*([\d.,]+)/i)
+    if (match) {
+      const raw = match[1]
+      // Remove pontos de milhar, troca virgula decimal por ponto
+      const normalized = raw.replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')
+      const val = parseFloat(normalized)
+      if (!isNaN(val) && val > 0) return val
+    }
+  }
+  return 0
+}
+
 async function fetchFlashFTLTasks() {
   // Usa endpoint /team/{teamId}/task que suporta filtros de status e list_ids
   // IMPORTANTE: URL construida manualmente para evitar encoding de [] como %5B%5D
@@ -806,7 +836,7 @@ function processFlashFTLData(rawTasks, mesFiltro) {
   }
 }
 
-function processCloserKanban(rawTasks, mesFiltro) {
+async function processCloserKanban(rawTasks, mesFiltro) {
   // Apenas tasks reais: nome contém " - " (formato "Cliente - Origem/Destino")
   const realTasks = rawTasks.filter(t => t.name && t.name.includes(' - '))
 
@@ -869,13 +899,39 @@ function processCloserKanban(rawTasks, mesFiltro) {
     (!mesFiltro || t.coletaMes === mesFiltro)
   )
 
+  // Busca comentarios das tasks do mes para extrair valor negociado
+  const tasksMes = mapped.filter(t => !mesFiltro || t.coletaMes === mesFiltro)
+  const commentsByTask = {}
+  await Promise.all(
+    tasksMes.map(async t => {
+      const comments = await fetchTaskComments(t.id)
+      commentsByTask[t.id] = extractValorFechado(comments)
+    })
+  )
+
+  // Atualiza valorFechado e saldo com base nos comentarios
+  const enriched = mapped.map(t => {
+    const valorDoComentario = commentsByTask[t.id]
+    const valorFechadoFinal = valorDoComentario > 0 ? valorDoComentario : t.valorFechado
+    const saldoFinal = t.freteMotorista > 0 && valorFechadoFinal > 0
+      ? t.freteMotorista - valorFechadoFinal
+      : t.saldo
+    return { ...t, valorFechado: valorFechadoFinal, saldo: saldoFinal }
+  })
+
+  const kanbanEnriched = enriched.filter(t =>
+    !DONE_STATUSES.has(t.status) &&
+    t.status !== 'cancelada' &&
+    (!mesFiltro || t.coletaMes === mesFiltro)
+  )
+
   // Eficiencia: cargas do mes selecionado com negociacao fechada + no shows do mes
-  const eficiencia = mapped.filter(t => {
+  const eficiencia = enriched.filter(t => {
     const noMes = !mesFiltro || t.coletaMes === mesFiltro
     return noMes && (t.valorFechado > 0 || t.isNoShow)
   })
 
-  return { kanban, eficiencia }
+  return { kanban: kanbanEnriched, eficiencia }
 }
 
 // Metas (hardcoded por enquanto, pode migrar para planilha depois)
@@ -950,7 +1006,7 @@ export default async function handler(req, res) {
     const atividades = buildAtividades(rawActivities)
     const clientesAtivos = processClientesAtivos(rawOrgs, wonDeals, lostDeals, mesFiltro)
     const { faturado: faturadoData, closerFTL: closerFTLData } = processFlashFTLData(rawFlashFTL, mesFiltro)
-    const closerFT = processCloserKanban(rawFlashFTL, mesFiltro)
+    const closerFT = await processCloserKanban(rawFlashFTL, mesFiltro)
 
     // Processa indicadores de qualidade
     const atividadesStatus = buildAtividadesStatus(rawActivities, rawPending, rawOverdue)
