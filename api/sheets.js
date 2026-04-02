@@ -922,11 +922,16 @@ async function processCloserKanban(rawTasks, mesFiltro) {
     return { ...t, valorFechado: valorFechadoFinal, saldo: saldoFinal }
   })
 
-  const kanbanEnriched = enriched.filter(t =>
-    !DONE_STATUSES.has(t.status) &&
-    t.status !== 'cancelada' &&
-    (!mesFiltro || t.coletaMes === mesFiltro)
-  )
+  // Statuses de pipeline inicial: ainda sem coleta agendada — mostrar sempre (sem filtro de mes)
+  const PIPELINE_INICIAL = new Set(['a contratar', 'validacao tecnica', 'pesquisa', 'checklist', 'em contratacao'])
+
+  const kanbanEnriched = enriched.filter(t => {
+    if (DONE_STATUSES.has(t.status) || t.status === 'cancelada') return false
+    // Pipeline inicial: sem coleta definida, mostrar sempre
+    if (PIPELINE_INICIAL.has(t.status)) return true
+    // Demais: filtrar pelo mes selecionado
+    return !mesFiltro || t.coletaMes === mesFiltro
+  })
 
   // Eficiencia: cargas do mes selecionado com negociacao fechada + no shows do mes
   const eficiencia = enriched.filter(t => {
