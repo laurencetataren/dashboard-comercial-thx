@@ -720,9 +720,9 @@ function TabFunil({ data, metrics }) {
             <span className="text-xs text-white/40">{fmtCurrency(dealsFiltrados.reduce((s, d) => s + (d.valor || 0), 0))} em pipeline</span>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[340px]">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 bg-[#0d0d24] z-10">
                 <tr className="border-b border-white/[0.06]">
                   <FunilSortHeader field="empresa">Empresa</FunilSortHeader>
                   <FunilSortHeader field="estagio">Estagio</FunilSortHeader>
@@ -1466,7 +1466,8 @@ function TabCloserFTL({ data }) {
   const totalAtivas = kanban.filter(t => t.status !== 'no show').length
   const totalNoShowKanban = kanban.filter(t => t.status === 'no show').length
   const emContratacao = byStatus['em contratacao']?.length || 0
-  const efiNeg = eficiencia.filter(t => !t.isNoShow)
+  const efiNeg = eficiencia.filter(t => !t.isNoShow && t.status !== 'cancelada')
+  const efiCancelada = eficiencia.filter(t => t.status === 'cancelada')
   const efiNoShow = eficiencia.filter(t => t.isNoShow)
   const totalDesejado = efiNeg.reduce((s, t) => s + t.freteMotorista, 0)
   const totalFechado = efiNeg.reduce((s, t) => s + t.valorFechado, 0)
@@ -1580,10 +1581,15 @@ function TabCloserFTL({ data }) {
       <GlassCard>
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <SectionTitle icon={TrendingDown} description={`${eficiencia.length} cargas | Economia: ${fmtCurrency(totalSaldo)}`}>Eficiencia de Negociacao</SectionTitle>
-            {efiNoShow.length > 0 && (
-              <span className="text-xs text-rose-400 font-medium">{efiNoShow.length} no show = {fmtCurrency(totalNoShowValor)} perdido</span>
-            )}
+            <SectionTitle icon={TrendingDown} description={`${eficiencia.length} cargas | Saldo: ${fmtCurrency(totalSaldo)}`}>Eficiencia de Negociacao</SectionTitle>
+            <div className="flex items-center gap-3">
+              {efiNoShow.length > 0 && (
+                <span className="text-xs text-rose-400/70 font-medium">{efiNoShow.length} no show</span>
+              )}
+              {efiCancelada.length > 0 && (
+                <span className="text-xs text-white/30 font-medium">{efiCancelada.length} cancelada{efiCancelada.length > 1 ? 's' : ''}</span>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1603,7 +1609,7 @@ function TabCloserFTL({ data }) {
                   const isNS = t.isNoShow
                   const sPos = !isNS && t.saldo !== null && t.saldo >= 0
                   return (
-                    <tr key={t.id || i} className={`border-b border-white/[0.03] transition-colors ${isNS ? 'bg-rose-500/[0.06] hover:bg-rose-500/[0.10]' : 'hover:bg-white/[0.02]'}`}>
+                    <tr key={t.id || i} className={`border-b border-white/[0.03] transition-colors ${isNS ? 'bg-rose-500/[0.06] hover:bg-rose-500/[0.10]' : t.status === 'cancelada' ? 'opacity-50 hover:opacity-70' : 'hover:bg-white/[0.02]'}`}>
                       <td className={`py-3 px-3 text-xs font-mono ${isNS ? 'text-rose-400/70' : 'text-white/30'}`}>{t.customId}</td>
                       <td className={`py-3 px-3 font-medium ${isNS ? 'text-rose-300' : 'text-white/80'}`}>{t.cliente}</td>
                       <td className={`py-3 px-3 text-xs ${isNS ? 'text-rose-400/60' : 'text-white/40'}`}>
@@ -1616,11 +1622,11 @@ function TabCloserFTL({ data }) {
                         {t.freteMotorista > 0 ? fmtCurrency(t.freteMotorista) : '--'}
                       </td>
                       <td className={`py-3 px-3 text-right font-bold ${isNS ? 'text-rose-400' : 'text-white/80'}`}>
-                        {isNS ? 'NO SHOW' : (t.valorFechado > 0 ? fmtCurrency(t.valorFechado) : '--')}
+                        {isNS ? 'NO SHOW' : t.status === 'cancelada' ? 'CANCELADA' : (t.valorFechado > 0 ? fmtCurrency(t.valorFechado) : '--')}
                       </td>
-                      <td className={`py-3 px-3 text-right font-bold text-sm ${isNS ? 'text-rose-400' : sPos ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {isNS
-                          ? (t.freteMotorista > 0 ? `-${fmtCurrency(t.freteMotorista)}` : '--')
+                      <td className={`py-3 px-3 text-right font-bold text-sm ${isNS || t.status === 'cancelada' ? 'text-white/30' : sPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {isNS || t.status === 'cancelada'
+                          ? 'R$ 0'
                           : t.saldo !== null ? `${t.saldo >= 0 ? '+' : ''}${fmtCurrency(t.saldo)}` : '--'
                         }
                       </td>
