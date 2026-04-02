@@ -923,9 +923,8 @@ export default async function handler(req, res) {
     const sinceDateStr = `${sinceDate.getFullYear()}-${String(sinceDate.getMonth() + 1).padStart(2, '0')}-01`
 
     // Busca TODOS os dados em paralelo (10 chamadas simultaneas)
-    let _clickupDebug = { tokenExists: !!CLICKUP_API_TOKEN, tokenPrefix: CLICKUP_API_TOKEN ? CLICKUP_API_TOKEN.substring(0, 15) + '...' : 'NONE', error: null }
     const clickupPromise = CLICKUP_API_TOKEN
-      ? fetchFlashFTLTasks().catch(err => { console.error('ClickUp error:', err); _clickupDebug.error = err.message; return [] })
+      ? fetchFlashFTLTasks().catch(err => { console.error('ClickUp error:', err); return [] })
       : Promise.resolve([])
 
     const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs, rawPending, rawActivities30d, rawOverdue] = await Promise.all([
@@ -946,31 +945,6 @@ export default async function handler(req, res) {
     const lostDeals = processLostDeals(rawLost, mesAtual)
     const atividades = buildAtividades(rawActivities)
     const clientesAtivos = processClientesAtivos(rawOrgs, wonDeals, lostDeals, mesFiltro)
-    // DEBUG TEMPORARIO - diagnosticar zero faturado
-    const _debugFlash = {
-      rawCount: rawFlashFTL.length,
-      statusBreakdown: {},
-      coletaFieldSamples: [],
-      mesFiltro
-    }
-    rawFlashFTL.forEach(t => {
-      const s = (t.status?.status || 'unknown').toLowerCase()
-      _debugFlash.statusBreakdown[s] = (_debugFlash.statusBreakdown[s] || 0) + 1
-    })
-    // Sample first 5 tasks coleta field
-    rawFlashFTL.slice(0, 5).forEach(t => {
-      const coletaField = t.custom_fields?.find(f => f.id === CLICKUP_COLETA_FIELD)
-      _debugFlash.coletaFieldSamples.push({
-        id: t.id,
-        name: (t.name || '').substring(0, 40),
-        status: (t.status?.status || '').toLowerCase(),
-        coletaFieldId: coletaField ? coletaField.id : 'NOT_FOUND',
-        coletaValue: coletaField?.value ?? 'null',
-        coletaDate: coletaField?.value ? new Date(Number(coletaField.value)).toISOString() : 'N/A',
-        allFieldIds: (t.custom_fields || []).map(f => f.id).join(',')
-      })
-    })
-
     const { faturado: faturadoData, closerFTL: closerFTLData } = processFlashFTLData(rawFlashFTL, mesFiltro)
     const closerFT = processCloserKanban(rawFlashFTL, mesFiltro)
 
@@ -1007,7 +981,6 @@ export default async function handler(req, res) {
       clientesAtivos,
       faturado: faturadoData,
       closerFTL: closerFTLData,
-      _debugFlash: { ..._debugFlash, ..._clickupDebug },
       closerFT,
       // Indicadores de qualidade
       atividadesStatus,
