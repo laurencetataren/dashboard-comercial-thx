@@ -923,8 +923,9 @@ export default async function handler(req, res) {
     const sinceDateStr = `${sinceDate.getFullYear()}-${String(sinceDate.getMonth() + 1).padStart(2, '0')}-01`
 
     // Busca TODOS os dados em paralelo (10 chamadas simultaneas)
+    let _clickupDebug = { tokenExists: !!CLICKUP_API_TOKEN, tokenPrefix: CLICKUP_API_TOKEN ? CLICKUP_API_TOKEN.substring(0, 15) + '...' : 'NONE', error: null }
     const clickupPromise = CLICKUP_API_TOKEN
-      ? fetchFlashFTLTasks().catch(err => { console.error('ClickUp error:', err); return [] })
+      ? fetchFlashFTLTasks().catch(err => { console.error('ClickUp error:', err); _clickupDebug.error = err.message; return [] })
       : Promise.resolve([])
 
     const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs, rawPending, rawActivities30d, rawOverdue] = await Promise.all([
@@ -1006,7 +1007,7 @@ export default async function handler(req, res) {
       clientesAtivos,
       faturado: faturadoData,
       closerFTL: closerFTLData,
-      _debugFlash,
+      _debugFlash: { ..._debugFlash, ..._clickupDebug },
       closerFT,
       // Indicadores de qualidade
       atividadesStatus,
