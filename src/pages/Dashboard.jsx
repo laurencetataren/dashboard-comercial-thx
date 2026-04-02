@@ -1465,7 +1465,7 @@ function TabCloserFTL({ data }) {
   })
   const totalAtivas = kanban.filter(t => t.status !== 'no show').length
   const totalNoShowKanban = kanban.filter(t => t.status === 'no show').length
-  const emContratacao = byStatus['em contratação']?.length || 0
+  const emContratacao = byStatus['em contratacao']?.length || 0
   const efiNeg = eficiencia.filter(t => !t.isNoShow)
   const efiNoShow = eficiencia.filter(t => t.isNoShow)
   const totalDesejado = efiNeg.reduce((s, t) => s + t.freteMotorista, 0)
