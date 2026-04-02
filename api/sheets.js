@@ -934,10 +934,9 @@ async function processCloserKanban(rawTasks, mesFiltro) {
   })
 
   // Eficiencia: cargas do mes selecionado com negociacao fechada + no shows do mes
-  const eficiencia = enriched.filter(t => {
-    const noMes = !mesFiltro || t.coletaMes === mesFiltro
-    return noMes && (t.valorFechado > 0 || t.isNoShow)
-  })
+  const eficiencia = enriched
+    .filter(t => !mesFiltro || t.coletaMes === mesFiltro)
+    .sort((a, b) => (a.coleta || '').localeCompare(b.coleta || ''))
 
   return { kanban: kanbanEnriched, eficiencia }
 }
