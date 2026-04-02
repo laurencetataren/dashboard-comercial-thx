@@ -736,7 +736,8 @@ async function fetchFlashFTLTasks() {
   // (URLSearchParams codifica colchetes e ClickUp API ignora params com %5B%5D)
   const TEAM_ID = '9007070798'
   const OPERATIONAL_STATUSES = [
-    'a contratar', 'em contratacao', 'em carregamento',
+    'a contratar', 'validação técnica', 'pesquisa', 'checklist',
+    'em contratação', 'em contratacao', 'em carregamento',
     'em transito', 'em descarga', 'entregues',
     'pendente faturamento', 'liberado faturamento',
     'faturado', 'finalizado',
@@ -800,7 +801,7 @@ function processFlashFTLData(rawTasks, mesFiltro) {
       id: task.id,
       customId: task.custom_id || '',
       nome: task.name || '',
-      status: (task.status?.status || '').toLowerCase(),
+      status: (task.status?.status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       freteEmpresa: freteVal,
       motivoNoShow,
       dataColeta: coletaDate
@@ -844,7 +845,9 @@ async function processCloserKanban(rawTasks, mesFiltro) {
   const DONE_STATUSES = new Set(['faturado', 'entregues', 'liberado faturamento', 'finalizado', 'em descarga'])
 
   const mapped = realTasks.map(task => {
+    // Normaliza status: lowercase + remove acentos para mapear com KANBAN_COLS
     const status = (task.status?.status || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     const freteMotorista = parseFloat(getTaskField(task, CLICKUP_FRETE_MOTORISTA_FIELD)) || 0
     const valorFechado = parseFloat(getTaskField(task, CLICKUP_VALOR_FECHADO_FIELD)) || 0
     const caixaRaw = getTaskField(task, CLICKUP_CAIXA_PROSPECCAO_FIELD)

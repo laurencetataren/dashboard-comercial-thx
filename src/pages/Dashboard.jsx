@@ -1656,11 +1656,14 @@ function TabCloserFTL({ data }) {
 // =============================================
 
 const KANBAN_COLS = [
-  { id: 'a contratar',    label: 'A Contratar',    color: '#6b7280', desc: 'Aguardando Closer' },
-  { id: 'em contratação', label: 'Em Contratação',  color: '#3b82f6', desc: 'Prospectando motorista' },
-  { id: 'em carregamento',label: 'Em Carregamento', color: '#f59e0b', desc: 'Motorista contratado' },
-  { id: 'em transito',    label: 'Em Transito',     color: '#10b981', desc: 'Carga saiu' },
-  { id: 'no show',        label: 'No Show',         color: '#ef4444', desc: 'Oportunidade perdida' },
+  { id: 'a contratar',       label: 'A Contratar',    color: '#6b7280', desc: 'Aguardando Closer' },
+  { id: 'validacao tecnica', label: 'Val. Técnica',   color: '#8b5cf6', desc: 'Validação técnica' },
+  { id: 'pesquisa',          label: 'Pesquisa',        color: '#06b6d4', desc: 'Pesquisando motorista' },
+  { id: 'checklist',         label: 'Checklist',       color: '#f97316', desc: 'Checklist pendente' },
+  { id: 'em contratacao',    label: 'Em Contratação', color: '#3b82f6', desc: 'Prospectando motorista' },
+  { id: 'em carregamento',   label: 'Em Carregamento',color: '#f59e0b', desc: 'Motorista contratado' },
+  { id: 'em transito',       label: 'Em Transito',     color: '#10b981', desc: 'Carga saiu' },
+  { id: 'no show',           label: 'No Show',         color: '#ef4444', desc: 'Oportunidade perdida' },
 ]
 
 function KanbanCard({ task }) {
