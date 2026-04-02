@@ -709,6 +709,7 @@ async function fetchFlashFTLTasks() {
     'a contratar', 'em contratacao', 'em carregamento',
     'em transito', 'em descarga', 'entregues',
     'pendente faturamento', 'liberado faturamento',
+    'faturado', 'finalizado',
     'no show', 'cancelada'
   ]
 
