@@ -862,8 +862,12 @@ function processCloserKanban(rawTasks, mesFiltro) {
     }
   })
 
-  // Kanban: todas as cargas ativas (inclui no show, exclui finalizadas e canceladas)
-  const kanban = mapped.filter(t => !DONE_STATUSES.has(t.status) && t.status !== 'cancelada')
+  // Kanban: cargas do mes selecionado (ativas + no show, exclui finalizadas e canceladas)
+  const kanban = mapped.filter(t =>
+    !DONE_STATUSES.has(t.status) &&
+    t.status !== 'cancelada' &&
+    (!mesFiltro || t.coletaMes === mesFiltro)
+  )
 
   // Eficiencia: cargas do mes selecionado com negociacao fechada + no shows do mes
   const eficiencia = mapped.filter(t => {

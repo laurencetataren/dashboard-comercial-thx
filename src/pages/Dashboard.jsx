@@ -1561,7 +1561,7 @@ function TabCloserFTL({ data }) {
                       <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: col.color }}>{col.label}</span>
                       <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: col.color + '20', color: col.color }}>{cards.length}</span>
                     </div>
-                    <div>
+                    <div className="overflow-y-auto" style={{ maxHeight: '440px' }}>
                       {cards.length === 0 ? (
                         <div className="text-center py-4 text-white/15 text-xs border border-dashed border-white/[0.05] rounded-xl">vazio</div>
                       ) : (
