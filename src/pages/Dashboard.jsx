@@ -1599,7 +1599,7 @@ function TabCloserFTL({ data }) {
                   <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Cliente</th>
                   <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Data</th>
                   <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Rota</th>
-                  <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Frete Desejado</th>
+                  <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Frete Orçado</th>
                   <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Frete Negociado</th>
                   <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Saldo</th>
                 </tr>
