@@ -750,9 +750,12 @@ async function fetchFlashFTLTasks() {
   // Monta string de statuses com colchetes literais (nao encoded)
   const statusParams = OPERATIONAL_STATUSES.map(s => `statuses[]=${encodeURIComponent(s)}`).join('&')
 
+  // Limita busca aos ultimos 90 dias para evitar timeout no Vercel (plano hobby = 60s)
+  const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000)
+
   while (page < 8) {
     // Constroi URL manualmente para manter [] literais
-    const fullUrl = `https://api.clickup.com/api/v2/team/${TEAM_ID}/task?page=${page}&limit=100&include_closed=true&subtasks=false&list_ids[]=${CLICKUP_FLASH_FTL_LIST}&${statusParams}`
+    const fullUrl = `https://api.clickup.com/api/v2/team/${TEAM_ID}/task?page=${page}&limit=100&include_closed=true&subtasks=false&list_ids[]=${CLICKUP_FLASH_FTL_LIST}&date_updated_gt=${ninetyDaysAgo}&${statusParams}`
 
     const res = await fetch(fullUrl, {
       headers: { 'Authorization': CLICKUP_API_TOKEN }
