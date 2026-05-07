@@ -427,7 +427,7 @@ async function fetchClientesAtivos() {
   return orgs
 }
 
-function processClientesAtivos(orgs, wonDeals, lostDeals, mesFiltro) {
+function processClientesAtivos(orgs, wonDeals, lostDeals, openDeals, mesFiltro) {
   // Calcula valor e contagem ganha por org no mes filtrado
   const wonByOrg = {}
   const wonFiltered = mesFiltro ? wonDeals.filter(d => d.mes === mesFiltro) : wonDeals
@@ -448,6 +448,17 @@ function processClientesAtivos(orgs, wonDeals, lostDeals, mesFiltro) {
     lostByOrg[orgName] = (lostByOrg[orgName] || 0) + 1
   })
 
+  // Calcula deals em aberto criados no mes filtrado (mesmo periodo que won/lost)
+  const openByOrg = {}
+  const openFiltered = mesFiltro
+    ? openDeals.filter(d => d.dataCriacao && d.dataCriacao.startsWith(mesFiltro))
+    : openDeals
+  openFiltered.forEach(d => {
+    const orgName = d.empresa
+    if (!orgName) return
+    openByOrg[orgName] = (openByOrg[orgName] || 0) + 1
+  })
+
   return orgs.map(o => {
     const nome = o.name || ''
     const ownerName = o.owner_name || (typeof o.owner_id === 'object' ? o.owner_id?.name : '') || 'N/A'
@@ -455,6 +466,7 @@ function processClientesAtivos(orgs, wonDeals, lostDeals, mesFiltro) {
     const perfil = PERFIL_COMPRA_MAP[String(o[ORG_PERFIL_COMPRA_KEY])] || 'N/A'
     const wonData = wonByOrg[nome] || { valor: 0, count: 0 }
     const perdidoMes = lostByOrg[nome] || 0
+    const openMes = openByOrg[nome] || 0
     // closedDealsCount = ganho + perdido no mes (para calculo de conversao mensal)
     const closedDealsCount = wonData.count + perdidoMes
 
@@ -464,9 +476,9 @@ function processClientesAtivos(orgs, wonDeals, lostDeals, mesFiltro) {
       perfil,
       responsavel: ownerName,
       pessoas: o.people_count || 0,
-      wonDealsCount: wonData.count,       // ganhos no mes filtrado
-      closedDealsCount,                   // fechados (won+lost) no mes filtrado
-      openDealsCount: o.open_deals_count || 0, // em aberto atual
+      wonDealsCount: wonData.count,   // ganhos no mes filtrado
+      closedDealsCount,               // fechados (won+lost) no mes filtrado
+      openDealsCount: openMes,        // em aberto criados no mes filtrado
       vendidoMes: wonData.valor,
       dealsGanhosMes: wonData.count
     }
@@ -1053,7 +1065,7 @@ export default async function handler(req, res) {
     const wonDeals = processWonDeals(rawWon, mesAtual)
     const lostDeals = processLostDeals(rawLost, mesAtual)
     const atividades = buildAtividades(rawActivities)
-    const clientesAtivos = processClientesAtivos(rawOrgs, wonDeals, lostDeals, mesFiltro)
+    const clientesAtivos = processClientesAtivos(rawOrgs, wonDeals, lostDeals, openDeals, mesFiltro)
     const { faturado: faturadoData, closerFTL: closerFTLData } = processFlashFTLData(rawFlashFTL, mesFiltro)
     const closerFT = await processCloserKanban(rawFlashFTL, mesFiltro)
 
