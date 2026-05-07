@@ -1993,42 +1993,80 @@ function TabProjecao({ data, metrics }) {
     ]
   }
 
-  // ── ALT 2: Pace charts (com meta por vendedora + linha esperada) ──────────
+  // ── ALT 2: Pace charts (com meta por vendedora + linha esperada por curva histórica) ──
   const daysInMonth = metrics.diasNoMes
   const milestones  = [1, 5, 10, 15, 20, 25, daysInMonth].filter((v, i, a) => a.indexOf(v) === i)
 
+  // Helper: fração histórica média acumulada até o dia d do mês
+  const fracaoMediaDia = function(d) {
+    var fracs = Object.values(wonByMes).map(function(deals) {
+      var totalMes = deals.reduce(function(s, x) { return s + (x.valor || 0) }, 0)
+      if (totalMes === 0) return null
+      var upTo = deals
+        .filter(function(x) { return parseInt((x.dataGanho || '').substring(8, 10) || '0') <= d })
+        .reduce(function(s, x) { return s + (x.valor || 0) }, 0)
+      return upTo / totalMes
+    }).filter(function(f) { return f !== null })
+    return fracs.length > 0 ? fracs.reduce(function(s, f) { return s + f }, 0) / fracs.length : d / 31
+  }
+
   const paceMensalData = milestones.map(d => {
-    const bdThru = businessDaysThroughCalendarDay(d)
-    const point  = { dia: 'D' + d }
+    const point = { dia: 'D' + d }
+    const fracHist = fracaoMediaDia(d)
     sellerDefs.forEach(s => {
       point[s.short + '_realizado'] = Math.round(sellerStats[s.short].dailyRate * Math.min(d, metrics.diaAtual))
-      point[s.short + '_esperado']  = totalBusinessDays > 0
-        ? Math.round(metaPerSeller[s.short] * bdThru / totalBusinessDays)
-        : Math.round(metaPerSeller[s.short] * d / daysInMonth)
+      point[s.short + '_esperado']  = Math.round(metaPerSeller[s.short] * fracHist)
     })
     return point
   })
 
   const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex']
+  // Dia do mês no início desta semana (segunda-feira)
+  const nowForWeek    = new Date()
+  const mondayOff     = (nowForWeek.getDay() + 6) % 7
+  const mondayDayOfMonth = nowForWeek.getDate() - mondayOff
+  // Fração acumulada até o dia anterior ao início da semana (base zero da semana)
+  const fracBaseWeek  = fracaoMediaDia(Math.max(mondayDayOfMonth - 1, 0))
+
   const paceSemanalData = weekDays.map((dia, i) => {
     const point = { dia }
+    const dayOfMonth   = mondayDayOfMonth + i
+    const fracDia      = fracaoMediaDia(dayOfMonth)
     sellerDefs.forEach(s => {
       point[s.short + '_realizado'] = Math.round(sellerStats[s.short].dailyRate * (i + 1))
-      point[s.short + '_esperado']  = Math.round(metaPerSeller[s.short] / 5 * (i + 1))
+      // esperado acumulado nessa semana = (fração do dia - fração antes da semana) × meta
+      point[s.short + '_esperado']  = Math.round(metaPerSeller[s.short] * Math.max(fracDia - fracBaseWeek, 0))
     })
     return point
   })
 
-  // ── ALT 3: Volume Oportunidades (equipe) — lógica original ───────────────
+  // ── ALT 3: Volume Oportunidades — taxa conversão 90d por vendedora ──────────
+  // Calcula taxa de conversão dos últimos 90 dias individualmente por vendedora
+  const cutoff90dStr = (function() {
+    var d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().substring(0, 10)
+  })()
+
+  const taxa90dPorVendedora = {}
+  sellerDefs.forEach(s => {
+    const won90  = (data.wonDeals  || []).filter(d => d.vendedora === s.nome && (d.dataGanho || '') >= cutoff90dStr)
+    const lost90 = (data.lostDeals || []).filter(d => d.vendedora === s.nome && (d.dataPerda || '') >= cutoff90dStr)
+    const wonVal  = won90.reduce((sum, d) => sum + (d.valor || 0), 0)
+    const lostVal = lost90.reduce((sum, d) => sum + (d.valor || 0), 0)
+    const total = wonVal + lostVal
+    taxa90dPorVendedora[s.short] = total > 0 ? wonVal / total : taxaAtual
+  })
+
   const volumeMensalData = [1, 2, 3, 4].map(sem => {
-    const pctMes = sem / 4
-    const point  = { periodo: 'Sem ' + sem }
+    const fracSem = fracaoMediaDia(Math.round(daysInMonth * sem / 4))
+    const point   = { periodo: 'Sem ' + sem }
     sellerDefs.forEach(s => {
-      const stats      = sellerStats[s.short]
-      const meta       = metaPerSeller[s.short]
-      const wonAteAqui = stats.wonValor * Math.min(pctMes, metrics.diaAtual / daysInMonth) / (metrics.diaAtual / daysInMonth || 1)
-      const gap        = Math.max(meta - wonAteAqui, 0)
-      const needed     = taxaAtual > 0 ? gap / taxaAtual : 0
+      const stats   = sellerStats[s.short]
+      const meta    = metaPerSeller[s.short]
+      const taxa90  = taxa90dPorVendedora[s.short] || taxaAtual
+      // Gap projetado até essa semana: quanto ainda falta dado o padrão histórico
+      const wonEsperado = meta * fracSem
+      const gap = Math.max(meta - Math.max(stats.wonValor, wonEsperado), 0)
+      const needed = taxa90 > 0 ? gap / taxa90 : 0
       point[s.short + '_necessario'] = Math.round(needed)
       point[s.short + '_pipeline']   = Math.round(stats.openValor)
     })
@@ -2037,12 +2075,16 @@ function TabProjecao({ data, metrics }) {
 
   const volumeSemanalData = weekDays.map((dia, i) => {
     const point = { periodo: dia }
+    const fracDiaWeek = fracaoMediaDia(mondayDayOfMonth + i)
     sellerDefs.forEach(s => {
-      const stats           = sellerStats[s.short]
-      const metaSemVendedora = metaPerSeller[s.short] / 4
-      const wonEstimado     = stats.dailyRate * (i + 1)
-      const gap             = Math.max(metaSemVendedora - wonEstimado, 0)
-      const needed          = taxaAtual > 0 ? gap / taxaAtual : 0
+      const stats  = sellerStats[s.short]
+      const meta   = metaPerSeller[s.short]
+      const taxa90 = taxa90dPorVendedora[s.short] || taxaAtual
+      // Gap para essa semana: meta semanal esperada pela curva - o que a vendedora fez
+      const metaEsperadaSemana = meta * Math.max(fracDiaWeek - fracBaseWeek, 0)
+      const wonSemana = stats.dailyRate * (i + 1)
+      const gap = Math.max(metaEsperadaSemana - wonSemana, 0)
+      const needed = taxa90 > 0 ? gap / taxa90 : 0
       point[s.short + '_necessario'] = Math.round(needed)
       point[s.short + '_pipeline']   = Math.round(stats.openValor)
     })
@@ -2113,10 +2155,10 @@ function TabProjecao({ data, metrics }) {
     <div className="space-y-8">
       {/* KPIs projecao */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard label="Projecao Linear" value={fmtCurrencyShort(metrics.projecaoValor)} subtitle={'Dia ' + metrics.diaAtual + '/' + metrics.diasNoMes} icon={TrendingUp} color="cyan" />
+        <KPICard label="Projecao Base" value={fmtCurrencyShort((cenarios.find(c => c.nome === 'Base') || {}).valor || metrics.projecaoValor)} subtitle={'Dia ' + metrics.diaAtual + '/' + metrics.diasNoMes + ' · linear ' + fmtCurrencyShort(metrics.projecaoValor)} icon={TrendingUp} color="cyan" />
         <KPICard label="Gap para Meta" value={metrics.gapMeta > 0 ? fmtCurrencyShort(metrics.gapMeta) : 'Meta batida!'} subtitle={metrics.gapMeta > 0 ? ('Faltam ' + fmtCurrencyShort(metrics.gapMeta)) : undefined} icon={Target} color={metrics.gapMeta > 0 ? 'amber' : 'emerald'} />
-        <KPICard label="Funil Potencial" value={fmtCurrencyShort(metrics.totalFunilValor)} subtitle={metrics.totalFunilCount + ' deals abertos'} icon={Funnel} color="violet" />
-        <KPICard label="Velocidade/Dia" value={fmtCurrencyShort(metrics.diaAtual > 0 ? metrics.totalWonValor / metrics.diaAtual : 0)} subtitle="Media diaria" icon={Zap} color="emerald" />
+        <KPICard label="Em Negociacao Hoje" value={fmtCurrencyShort(metrics.totalFunilValor)} subtitle={metrics.totalFunilCount + ' deals · proximo 24h'} icon={Funnel} color="violet" />
+        <KPICard label="Velocidade/Dia" value={fmtCurrencyShort(metrics.diaAtual > 0 ? metrics.totalWonValor / metrics.diaAtual : 0)} subtitle={'Necessario: ' + fmtCurrencyShort((metrics.diasNoMes - metrics.diaAtual) > 0 ? metrics.gapMeta / (metrics.diasNoMes - metrics.diaAtual) : 0) + '/dia'} icon={Zap} color={(metrics.diaAtual > 0 && (metrics.diasNoMes - metrics.diaAtual) > 0 && (metrics.totalWonValor / metrics.diaAtual) >= (metrics.gapMeta / (metrics.diasNoMes - metrics.diaAtual))) ? 'emerald' : 'amber'} />
       </div>
 
       {/* ALT 1 — Cenários de Fechamento */}
@@ -2217,7 +2259,7 @@ function TabProjecao({ data, metrics }) {
         <GlassCard>
           <div className="p-6">
             <SectionTitle icon={Layers}>Volume Oportunidades | Mes</SectionTitle>
-            <p className="text-[11px] text-white/30 -mt-2 mb-4">{'Pipeline necessario vs atual (taxa conv. ' + fmtPct(metrics.taxaConversao, 0) + ')'}</p>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">{'Volume necessario por taxa conversao 90d · ' + sellerDefs.map(s => s.short + ' ' + Math.round((taxa90dPorVendedora[s.short] || taxaAtual) * 100) + '%').join(' / ')}</p>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={volumeMensalData}>
