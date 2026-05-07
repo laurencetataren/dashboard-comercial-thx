@@ -2082,40 +2082,39 @@ function TabProjecao({ data, metrics }) {
   }
 
   // Volume Oportunidades | Mes
-  // necessario(d) = burndown diario: quanto de pipeline gerar NO DIA D
-  //   = (gap_restante_no_dia_d / dias_restantes_a_partir_de_d) / taxa90
-  // Ex: gap=200K, 20 dias, taxa=10% → precisa 10K/dia de pipeline
-  // Se adiantada: gap cai, precisa menos por dia. Se atrasada: precisa mais.
+  // necessario(d) = pipeline a gerar NO DIA D = (gap/dias_restantes) / taxaHistorica
+  // Usa taxaAtual (taxa historica geral) porque taxa90 pode ser 100% se nao houver
+  // deals perdidos recentes — o que tornaria o calculo trivial (necessario = venda_dia)
+  // taxaAtual da a perspectiva conservadora correta: 42K de venda / 32% = 131K de pipeline
+  const taxaConvPipe = taxaAtual > 0 ? taxaAtual : 0.1  // taxa historica geral para pipeline
   const volumeMensalData = Array.from({ length: daysInMonth }, function(_, i) {
     const d = i + 1
     const point = { periodo: 'D' + d }
     sellerDefs.forEach(s => {
-      const stats        = sellerStats[s.short]
-      const meta         = metaPerSeller[s.short]
-      const taxa90       = taxa90dPorVendedora[s.short] || taxaAtual
-      const wonD         = wonAteDia(stats, d)
-      const gap          = Math.max(meta - wonD, 0)
+      const stats         = sellerStats[s.short]
+      const meta          = metaPerSeller[s.short]
+      const wonD          = wonAteDia(stats, d)
+      const gap           = Math.max(meta - wonD, 0)
       const diasRestantes = Math.max(daysInMonth - d + 1, 1)
-      const vendasDia    = gap / diasRestantes
-      point[s.short + '_necessario'] = Math.round(taxa90 > 0 ? vendasDia / taxa90 : 0)
+      const vendasDia     = gap / diasRestantes
+      point[s.short + '_necessario'] = Math.round(vendasDia / taxaConvPipe)
       point[s.short + '_pipeline']   = Math.round(stats.openValor)
     })
     return point
   })
 
-  // Volume Oportunidades | Semana — mesma logica burndown para os 5 dias
+  // Volume Oportunidades | Semana — mesma logica, vista pelos 5 dias da semana
   const volumeSemanalData = weekDays.map((dia, i) => {
-    const point        = { periodo: dia }
-    const dayOfMonthI  = mondayDayOfMonth + i
+    const point         = { periodo: dia }
+    const dayOfMonthI   = mondayDayOfMonth + i
     sellerDefs.forEach(s => {
-      const stats        = sellerStats[s.short]
-      const meta         = metaPerSeller[s.short]
-      const taxa90       = taxa90dPorVendedora[s.short] || taxaAtual
-      const wonD         = wonAteDia(stats, dayOfMonthI)
-      const gap          = Math.max(meta - wonD, 0)
+      const stats         = sellerStats[s.short]
+      const meta          = metaPerSeller[s.short]
+      const wonD          = wonAteDia(stats, dayOfMonthI)
+      const gap           = Math.max(meta - wonD, 0)
       const diasRestantes = Math.max(daysInMonth - dayOfMonthI + 1, 1)
-      const vendasDia    = gap / diasRestantes
-      point[s.short + '_necessario'] = Math.round(taxa90 > 0 ? vendasDia / taxa90 : 0)
+      const vendasDia     = gap / diasRestantes
+      point[s.short + '_necessario'] = Math.round(vendasDia / taxaConvPipe)
       point[s.short + '_pipeline']   = Math.round(stats.openValor)
     })
     return point
@@ -2152,7 +2151,8 @@ function TabProjecao({ data, metrics }) {
         })
         .reduce(function(acc, deal) { return acc + (deal.valor || 0) }, 0)
       // Alvo acumulado: quanto de pipeline deveria ter sido gerado ate o dia d
-      const metaAcumulada = taxa90 > 0 ? (meta * fracaoMediaDia(d)) / taxa90 : 0
+      // Usa taxaConvPipe (taxa historica geral) para escala correta
+      const metaAcumulada = taxaConvPipe > 0 ? (meta * fracaoMediaDia(d)) / taxaConvPipe : 0
       point[s.short + '_gerado'] = Math.round(gerado)
       point[s.short + '_meta']   = Math.round(metaAcumulada)
     })
@@ -2189,7 +2189,7 @@ function TabProjecao({ data, metrics }) {
       // Alvo acumulado para a semana ate o dia i
       const fracDiaI   = Math.max(fracaoMediaDia(dayOfMonthI) - fracBaseWeek, 0)
       const metaSemana = meta * (fracSemanaFim > 0 ? fracSemanaFim : 1 / 4.33)
-      const metaAcum   = taxa90 > 0 ? metaSemana * (fracSemanaFim > 0 ? fracDiaI / fracSemanaFim : (i + 1) / 5) / taxa90 : 0
+      const metaAcum   = taxaConvPipe > 0 ? metaSemana * (fracSemanaFim > 0 ? fracDiaI / fracSemanaFim : (i + 1) / 5) / taxaConvPipe : 0
       point[s.short + '_gerado'] = Math.round(gerado)
       point[s.short + '_meta']   = Math.round(metaAcum)
     })
@@ -2311,7 +2311,7 @@ function TabProjecao({ data, metrics }) {
         <GlassCard>
           <div className="p-6">
             <SectionTitle icon={Layers}>Volume Oportunidades | Mes</SectionTitle>
-            <p className="text-[11px] text-white/30 -mt-2 mb-4">{'Volume necessario por taxa conversao 90d · ' + sellerDefs.map(s => s.short + ' ' + Math.round((taxa90dPorVendedora[s.short] || taxaAtual) * 100) + '%').join(' / ')}</p>
+            <p className="text-[11px] text-white/30 -mt-2 mb-4">{'Pipeline diario necessario para bater meta · taxa conv. historica ' + fmtPct(taxaConvPipe * 100, 0)}</p>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={volumeMensalData}>
