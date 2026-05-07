@@ -720,9 +720,9 @@ function TabFunil({ data, metrics }) {
             <span className="text-xs text-white/40">{fmtCurrency(dealsFiltrados.reduce((s, d) => s + (d.valor || 0), 0))} em pipeline</span>
           </div>
 
-          <div className="overflow-x-auto overflow-y-auto max-h-[340px]">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-[#0d0d24] z-10">
+              <thead>
                 <tr className="border-b border-white/[0.06]">
                   <FunilSortHeader field="empresa">Empresa</FunilSortHeader>
                   <FunilSortHeader field="estagio">Estagio</FunilSortHeader>
@@ -1371,75 +1371,6 @@ function TabInsideSales({ data, metrics }) {
             </GlassCard>
           </div>
         )}
-
-        {/* Sales Velocity */}
-        {data.salesVelocity && (
-          <GlassCard>
-            <div className="p-6">
-              <SectionTitle icon={Zap} description="Velocity = (Deals x Valor Medio x Conversao) / Ciclo Medio">Sales Velocity</SectionTitle>
-              <div className="mt-4">
-                {/* Velocity Geral */}
-                <div className="flex items-center justify-center mb-6">
-                  <div className="text-center">
-                    <p className="text-4xl font-bold text-emerald-400">{fmtCurrencyShort(data.salesVelocity.geral?.velocity || 0)}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-white/30 mt-1">velocity/dia</p>
-                  </div>
-                </div>
-
-                {/* Formula decomposition */}
-                <div className="grid grid-cols-4 gap-4 mb-6">
-                  <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                    <p className="text-xl font-bold text-cyan-400">{data.salesVelocity.geral?.numDeals || 0}</p>
-                    <p className="text-[10px] text-white/30 mt-1">Deals</p>
-                  </div>
-                  <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                    <p className="text-xl font-bold text-violet-400">{fmtCurrencyShort(data.salesVelocity.geral?.valorMedio || 0)}</p>
-                    <p className="text-[10px] text-white/30 mt-1">Valor Medio</p>
-                  </div>
-                  <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                    <p className="text-xl font-bold text-amber-400">{data.salesVelocity.geral?.conversao || 0}%</p>
-                    <p className="text-[10px] text-white/30 mt-1">Conversao</p>
-                  </div>
-                  <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                    <p className="text-xl font-bold text-rose-400">{data.salesVelocity.geral?.cicloMedio || 0}d</p>
-                    <p className="text-[10px] text-white/30 mt-1">Ciclo Medio</p>
-                  </div>
-                </div>
-
-                {/* Por vendedora */}
-                <div className="space-y-3">
-                  <p className="text-[11px] uppercase tracking-wider text-white/30 font-medium">Por vendedora</p>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-white/[0.06]">
-                          <th className="text-left py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Vendedora</th>
-                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Velocity</th>
-                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Deals</th>
-                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Valor Medio</th>
-                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Conversao</th>
-                          <th className="text-center py-2 px-3 text-[10px] uppercase tracking-wider text-white/30">Ciclo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(data.salesVelocity.porVendedora || {}).map(([nome, v], i) => (
-                          <tr key={i} className="border-b border-white/[0.03]">
-                            <td className="py-2 px-3 text-white/70 font-medium">{nome}</td>
-                            <td className="py-2 px-3 text-center text-emerald-400 font-semibold">{fmtCurrencyShort(v.velocity)}</td>
-                            <td className="py-2 px-3 text-center text-white/50">{v.numDeals}</td>
-                            <td className="py-2 px-3 text-center text-white/50">{fmtCurrencyShort(v.valorMedio)}</td>
-                            <td className="py-2 px-3 text-center text-white/50">{v.conversao}%</td>
-                            <td className="py-2 px-3 text-center text-white/50">{v.cicloMedio}d</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </GlassCard>
-        )}
       </div>
 
     </div>
@@ -1465,10 +1396,10 @@ function TabCloserFTL({ data }) {
   })
   const totalAtivas = kanban.filter(t => t.status !== 'no show').length
   const totalNoShowKanban = kanban.filter(t => t.status === 'no show').length
-  const emContratacao = byStatus['em contratacao']?.length || 0
+  const emContratacao = byStatus['em contratação']?.length || 0
   const efiNeg = eficiencia.filter(t => !t.isNoShow && t.status !== 'cancelada')
-  const efiCancelada = eficiencia.filter(t => t.status === 'cancelada')
   const efiNoShow = eficiencia.filter(t => t.isNoShow)
+  const efiCancelada = eficiencia.filter(t => t.status === 'cancelada')
   const totalDesejado = efiNeg.reduce((s, t) => s + t.freteMotorista, 0)
   const totalFechado = efiNeg.reduce((s, t) => s + t.valorFechado, 0)
   const totalSaldo = efiNeg.reduce((s, t) => s + (t.saldo || 0), 0)
@@ -1562,7 +1493,7 @@ function TabCloserFTL({ data }) {
                       <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: col.color }}>{col.label}</span>
                       <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: col.color + '20', color: col.color }}>{cards.length}</span>
                     </div>
-                    <div className="overflow-y-auto" style={{ maxHeight: '440px' }}>
+                    <div>
                       {cards.length === 0 ? (
                         <div className="text-center py-4 text-white/15 text-xs border border-dashed border-white/[0.05] rounded-xl">vazio</div>
                       ) : (
@@ -1591,15 +1522,15 @@ function TabCloserFTL({ data }) {
               )}
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[340px]">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 bg-[#0d0d24] z-10">
                 <tr className="border-b border-white/[0.06]">
                   <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">ID</th>
                   <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Cliente</th>
                   <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Data</th>
                   <th className="text-left py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Rota</th>
-                  <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Frete Orçado</th>
+                  <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Frete Desejado</th>
                   <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Frete Negociado</th>
                   <th className="text-right py-3 px-3 text-[10px] uppercase tracking-wider text-white/30 font-medium">Saldo</th>
                 </tr>
@@ -1607,25 +1538,27 @@ function TabCloserFTL({ data }) {
               <tbody>
                 {eficiencia.map((t, i) => {
                   const isNS = t.isNoShow
-                  const sPos = !isNS && t.saldo !== null && t.saldo >= 0
+                  const isCancelada = t.status === 'cancelada'
+                  const sPos = !isNS && !isCancelada && t.saldo !== null && t.saldo >= 0
+                  const rowBg = isNS ? 'bg-rose-500/[0.06] hover:bg-rose-500/[0.10]' : isCancelada ? 'bg-white/[0.02] hover:bg-white/[0.04]' : 'hover:bg-white/[0.02]'
                   return (
-                    <tr key={t.id || i} className={`border-b border-white/[0.03] transition-colors ${isNS ? 'bg-rose-500/[0.06] hover:bg-rose-500/[0.10]' : t.status === 'cancelada' ? 'opacity-50 hover:opacity-70' : 'hover:bg-white/[0.02]'}`}>
-                      <td className={`py-3 px-3 text-xs font-mono ${isNS ? 'text-rose-400/70' : 'text-white/30'}`}>{t.customId}</td>
-                      <td className={`py-3 px-3 font-medium ${isNS ? 'text-rose-300' : 'text-white/80'}`}>{t.cliente}</td>
+                    <tr key={t.id || i} className={`border-b border-white/[0.03] transition-colors ${rowBg}`}>
+                      <td className={`py-3 px-3 text-xs font-mono ${isNS ? 'text-rose-400/70' : isCancelada ? 'text-white/20' : 'text-white/30'}`}>{t.customId}</td>
+                      <td className={`py-3 px-3 font-medium ${isNS ? 'text-rose-300' : isCancelada ? 'text-white/40' : 'text-white/80'}`}>{t.cliente}</td>
                       <td className={`py-3 px-3 text-xs ${isNS ? 'text-rose-400/60' : 'text-white/40'}`}>
                         {t.coleta ? new Date(t.coleta + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--'}
                       </td>
                       <td className={`py-3 px-3 text-xs ${isNS ? 'text-rose-400/60' : 'text-white/40'}`}>
                         {t.origem && t.destino ? `${t.origem} → ${t.destino}` : (t.origem || t.destino || '--')}
                       </td>
-                      <td className={`py-3 px-3 text-right font-medium ${isNS ? 'text-rose-400/80' : 'text-white/60'}`}>
+                      <td className={`py-3 px-3 text-right font-medium ${isNS ? 'text-rose-400/80' : isCancelada ? 'text-white/30' : 'text-white/60'}`}>
                         {t.freteMotorista > 0 ? fmtCurrency(t.freteMotorista) : '--'}
                       </td>
-                      <td className={`py-3 px-3 text-right font-bold ${isNS ? 'text-rose-400' : 'text-white/80'}`}>
-                        {isNS ? 'NO SHOW' : t.status === 'cancelada' ? 'CANCELADA' : (t.valorFechado > 0 ? fmtCurrency(t.valorFechado) : '--')}
+                      <td className={`py-3 px-3 text-right font-bold ${isNS ? 'text-rose-400' : isCancelada ? 'text-white/30' : 'text-white/80'}`}>
+                        {isNS ? 'NO SHOW' : isCancelada ? 'CANCELADA' : (t.valorFechado > 0 ? fmtCurrency(t.valorFechado) : '--')}
                       </td>
-                      <td className={`py-3 px-3 text-right font-bold text-sm ${isNS || t.status === 'cancelada' ? 'text-white/30' : sPos ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {isNS || t.status === 'cancelada'
+                      <td className={`py-3 px-3 text-right font-bold text-sm ${isNS || isCancelada ? 'text-white/30' : sPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {isNS || isCancelada
                           ? 'R$ 0'
                           : t.saldo !== null ? `${t.saldo >= 0 ? '+' : ''}${fmtCurrency(t.saldo)}` : '--'
                         }
