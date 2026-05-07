@@ -873,12 +873,15 @@ async function processCloserKanban(rawTasks, mesFiltro) {
   const realTasks = rawTasks.filter(t => t.name && t.name.includes(' - '))
 
   // Status finalizados operacionalmente — nao aparecem no Kanban
-  const DONE_STATUSES = new Set(['faturado', 'entregues', 'liberado faturamento', 'finalizado', 'em descarga'])
+  const DONE_STATUSES = new Set(['em descarga'])
 
   const mapped = realTasks.map(task => {
     // Normaliza status: lowercase + remove acentos para mapear com KANBAN_COLS
-    const status = (task.status?.status || '').toLowerCase()
+    const statusRaw = (task.status?.status || '').toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    // Agrupa todos os status de entrega no mesmo bucket para a coluna Entregues
+    const ENTREGUES_SET = new Set(['entregues', 'liberado faturamento', 'faturado', 'finalizado'])
+    const status = ENTREGUES_SET.has(statusRaw) ? 'entregues' : statusRaw
     const freteMotorista = parseFloat(getTaskField(task, CLICKUP_FRETE_MOTORISTA_FIELD)) || 0
     const valorFechado = parseFloat(getTaskField(task, CLICKUP_VALOR_FECHADO_FIELD)) || 0
     const caixaRaw = getTaskField(task, CLICKUP_CAIXA_PROSPECCAO_FIELD)

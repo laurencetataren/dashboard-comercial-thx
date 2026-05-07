@@ -3,7 +3,7 @@ import {
   BarChart3, Funnel, Users, ArrowLeftRight, TrendingUp,
   RefreshCw, AlertTriangle, Clock, Target, DollarSign,
   Award, XCircle, ArrowUpRight, ArrowDownRight, Zap,
-  ChevronRight, Layers, Truck, Ban, CheckCircle, Phone, Activity,
+  ChevronRight, Layers, Truck, Ban, CheckCircle, CheckCircle2, Phone, Activity,
   Columns2, TrendingDown, ExternalLink
 } from 'lucide-react'
 import {
@@ -1394,7 +1394,8 @@ function TabCloserFTL({ data }) {
     const col = KANBAN_COLS.find(c => c.id === t.status)
     if (col) byStatus[col.id].push(t)
   })
-  const totalAtivas = kanban.filter(t => t.status !== 'no show').length
+  const totalAtivas = kanban.filter(t => t.status !== 'no show' && t.status !== 'entregues').length
+  const totalEntregues = byStatus['entregues']?.length || 0
   const totalNoShowKanban = kanban.filter(t => t.status === 'no show').length
   const emContratacao = byStatus['em contratação']?.length || 0
   const efiNeg = eficiencia.filter(t => !t.isNoShow && t.status !== 'cancelada')
@@ -1469,9 +1470,10 @@ function TabCloserFTL({ data }) {
       </div>
 
       {/* KPIs Kanban */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <KPICard label="Cargas Ativas" value={totalAtivas} icon={Truck} color="cyan" />
         <KPICard label="Em Contratacao" value={emContratacao} icon={Activity} color="blue" />
+        <KPICard label="Entregues" value={totalEntregues} icon={CheckCircle2} color="emerald" />
         <KPICard label="No Show (Kanban)" value={totalNoShowKanban} icon={Ban} color="rose" />
         <KPICard label="Saldo do Mes" value={fmtCurrencyShort(totalSaldo)} icon={totalSaldo >= 0 ? ArrowUpRight : ArrowDownRight} color={totalSaldo >= 0 ? 'emerald' : 'rose'} />
       </div>
@@ -1601,17 +1603,21 @@ const KANBAN_COLS = [
   { id: 'checklist',         label: 'Checklist',       color: '#f97316', desc: 'Checklist pendente' },
   { id: 'em carregamento',   label: 'Em Carregamento',color: '#f59e0b', desc: 'Motorista contratado' },
   { id: 'em transito',       label: 'Em Transito',     color: '#10b981', desc: 'Carga saiu' },
+  { id: 'entregues',         label: 'Entregues',        color: '#22c55e', desc: 'Carregada e entregue no mes' },
   { id: 'no show',           label: 'No Show',         color: '#ef4444', desc: 'Oportunidade perdida' },
 ]
 
 function KanbanCard({ task }) {
   const isNoShow = task.status === 'no show'
+  const isEntregues = task.status === 'entregues'
   const saldoPositivo = task.saldo !== null && task.saldo >= 0
   return (
     <div className={`rounded-xl p-3.5 mb-2.5 border transition-all ${
       isNoShow
         ? 'bg-rose-500/10 border-rose-500/30'
-        : 'bg-white/[0.04] border-white/[0.07] hover:border-white/[0.12]'
+        : isEntregues
+          ? 'bg-emerald-500/10 border-emerald-500/30'
+          : 'bg-white/[0.04] border-white/[0.07] hover:border-white/[0.12]'
     }`}>
       {/* ID + link */}
       <div className="flex items-center justify-between mb-2">
@@ -1624,7 +1630,7 @@ function KanbanCard({ task }) {
       </div>
 
       {/* Cliente */}
-      <p className={`text-sm font-semibold leading-tight mb-1.5 ${isNoShow ? 'text-rose-300' : 'text-white/90'}`}>
+      <p className={`text-sm font-semibold leading-tight mb-1.5 ${isNoShow ? 'text-rose-300' : isEntregues ? 'text-emerald-300' : 'text-white/90'}`}>
         {task.cliente || task.nome.split(' - ')[0]}
       </p>
 
@@ -1647,6 +1653,8 @@ function KanbanCard({ task }) {
           <span className="text-[10px] text-white/25">Teto: {fmtCurrency(task.freteMotorista)}</span>
           {isNoShow ? (
             <span className="text-[10px] font-bold text-rose-400 uppercase">No Show</span>
+          ) : isEntregues ? (
+            <span className="text-[10px] font-bold text-emerald-400 uppercase">Entregue</span>
           ) : task.saldo !== null ? (
             <span className={`text-[11px] font-bold ${saldoPositivo ? 'text-emerald-400' : 'text-rose-400'}`}>
               {saldoPositivo ? '+' : ''}{fmtCurrency(task.saldo)}
