@@ -48,10 +48,58 @@ const FUNIL_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'Proposta Aprovada', 
 
 // Pipedrive Organizations — Clientes Ativos
 const CLIENTES_ATIVOS_FILTER_ID = 31374
-const ORG_STATUS_TERMOMETRO_KEY = '4abea383919e4b58f5896ed5cf571d89396d1bc5'
 const ORG_PERFIL_COMPRA_KEY = 'e52751b2ca4cdbe74f9f473e158d2f8689c7e66f'
-const STATUS_TERMOMETRO_MAP = { '252': 'ATIVO', '253': 'ATENCAO', '254': 'RISCO', '255': 'INATIVO' }
 const PERFIL_COMPRA_MAP = { '249': 'A - Cotacao diaria', '250': 'B - Cotacao semanal', '251': 'C - Cotacao esporadica' }
+
+// ── Termometro: calculo dinamico (pior dos dois vence) ──────────────────────
+// Regras de cotacao por perfil: { STATUS: [dias, usarDiasUteis] }
+const COTACAO_RULES_TERM = {
+  '249': { ATENCAO: [3, true],  RISCO: [7,  true],  INATIVO: [15, true]  }, // A - diaria
+  '250': { ATENCAO: [7, true],  RISCO: [15, true],  INATIVO: [30, false] }, // B - semanal
+  '251': { ATENCAO: [15,false], RISCO: [30, false], INATIVO: [60, false] }, // C - esporadica
+}
+// Regras de fechamento por perfil
+const FECHAMENTO_RULES_TERM = {
+  '249': { ATENCAO: [7,  false], RISCO: [14, false], INATIVO: [21, false] },
+  '250': { ATENCAO: [15, false], RISCO: [30, false], INATIVO: [45, false] },
+  '251': { ATENCAO: [30, false], RISCO: [60, false], INATIVO: [90, false] },
+}
+const TERM_STATUS_ORDER = ['INATIVO', 'RISCO', 'ATENCAO', 'ATIVO']
+
+function termBizDaysSince(dateStr) {
+  if (!dateStr) return Infinity
+  const past = new Date(dateStr); past.setHours(0,0,0,0)
+  const today = new Date(); today.setHours(0,0,0,0)
+  if (past >= today) return 0
+  let count = 0; const d = new Date(past); d.setDate(d.getDate() + 1)
+  while (d <= today) { if (d.getDay() > 0 && d.getDay() < 6) count++; d.setDate(d.getDate() + 1) }
+  return count
+}
+function termCalDaysSince(dateStr) {
+  if (!dateStr) return Infinity
+  const past = new Date(dateStr); past.setHours(0,0,0,0)
+  const today = new Date(); today.setHours(0,0,0,0)
+  return Math.max(0, Math.floor((today - past) / 86400000))
+}
+function termStatusFromRules(rules, lastDate) {
+  if (!lastDate) return 'INATIVO'
+  for (const s of ['INATIVO', 'RISCO', 'ATENCAO']) {
+    if (!rules[s]) continue
+    const [thr, biz] = rules[s]
+    const elapsed = biz ? termBizDaysSince(lastDate) : termCalDaysSince(lastDate)
+    if (elapsed > thr) return s
+  }
+  return 'ATIVO'
+}
+function termWorst(s1, s2) {
+  return TERM_STATUS_ORDER[Math.min(TERM_STATUS_ORDER.indexOf(s1), TERM_STATUS_ORDER.indexOf(s2))]
+}
+function calcTermometro(perfilKey, lastCotacao, lastFechamento) {
+  const rc = COTACAO_RULES_TERM[perfilKey]; const rf = FECHAMENTO_RULES_TERM[perfilKey]
+  if (!rc || !rf) return 'N/A'
+  return termWorst(termStatusFromRules(rc, lastCotacao), termStatusFromRules(rf, lastFechamento))
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 // Mapeamento de users (todos os usuarios do sistema)
 const USERS = {
@@ -428,6 +476,20 @@ async function fetchClientesAtivos() {
 }
 
 function processClientesAtivos(orgs, wonDeals, lostDeals, openDeals, mesFiltro) {
+  // ── Termometro: ultima cotacao e ultimo fechamento por org (todos os deals, sem filtro de mes) ──
+  const lastCotacaoByOrg = {}   // max(dataCriacao) entre won+lost+open
+  const lastFechamentoByOrg = {} // max(dataGanho) entre won
+  ;[...wonDeals, ...lostDeals, ...openDeals].forEach(d => {
+    const org = d.empresa; const dt = d.dataCriacao
+    if (!org || !dt) return
+    if (!lastCotacaoByOrg[org] || dt > lastCotacaoByOrg[org]) lastCotacaoByOrg[org] = dt
+  })
+  wonDeals.forEach(d => {
+    const org = d.empresa; const dt = d.dataGanho
+    if (!org || !dt) return
+    if (!lastFechamentoByOrg[org] || dt > lastFechamentoByOrg[org]) lastFechamentoByOrg[org] = dt
+  })
+
   // Calcula valor e contagem ganha por org no mes filtrado
   const wonByOrg = {}
   const wonFiltered = mesFiltro ? wonDeals.filter(d => d.mes === mesFiltro) : wonDeals
@@ -462,8 +524,10 @@ function processClientesAtivos(orgs, wonDeals, lostDeals, openDeals, mesFiltro) 
   return orgs.map(o => {
     const nome = o.name || ''
     const ownerName = o.owner_name || (typeof o.owner_id === 'object' ? o.owner_id?.name : '') || 'N/A'
-    const termometro = STATUS_TERMOMETRO_MAP[String(o[ORG_STATUS_TERMOMETRO_KEY])] || 'N/A'
-    const perfil = PERFIL_COMPRA_MAP[String(o[ORG_PERFIL_COMPRA_KEY])] || 'N/A'
+    const perfilKey = String(o[ORG_PERFIL_COMPRA_KEY] || '')
+    const perfil = PERFIL_COMPRA_MAP[perfilKey] || 'N/A'
+    // Termometro calculado dinamicamente — pior dos dois vence
+    const termometro = calcTermometro(perfilKey, lastCotacaoByOrg[nome], lastFechamentoByOrg[nome])
     const wonData = wonByOrg[nome] || { valor: 0, count: 0 }
     const perdidoMes = lostByOrg[nome] || 0
     const openMes = openByOrg[nome] || 0
