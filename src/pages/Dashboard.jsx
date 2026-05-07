@@ -1918,43 +1918,80 @@ function TabProjecao({ data, metrics }) {
   const metaPerSeller = {}
   sellerDefs.forEach(s => { metaPerSeller[s.short] = metaMensal * (normProps[s.nome] || 0.5) })
 
-  // ── ALT 1: Cenários (funil × taxa histórica) ──────────────────────────────
-  const completedMonths = (data.historicoMensal || [])
-    .filter(h => h.mes < mesFiltro)
-    .slice(-4)
-
-  const taxasHistoricas = completedMonths
-    .map(h => {
-      const tot = (h.won_value || 0) + (h.lost_value || 0)
-      return tot > 0 ? (h.won_value || 0) / tot : null
-    })
-    .filter(t => t !== null)
-
-  const taxaPessimista = taxasHistoricas.length > 0 ? Math.min(...taxasHistoricas) : taxaAtual * 0.85
-  const taxaOtimista   = taxasHistoricas.length > 0 ? Math.max(...taxasHistoricas) : taxaAtual * 1.15
-  const pipelineAberto  = metrics.totalFunilValor
+  // ── ALT 1: Cenários por curva de distribuição intra-mês ──────────────────
+  // Lógica: para cada mês histórico completo, calcula quanto % da receita total
+  // foi acumulado até o dia atual. Divide o vendido de hoje por essa fração
+  // para projetar o total do mês. Pessimista = mês onde essa fração foi maior
+  // (já queimou cedo, pouco por vir). Otimista = fração menor (início lento, pico à frente).
+  const pipelineAberto   = metrics.totalFunilValor
   const vendidoAcumulado = metrics.totalWonValor
 
-  const cenarios = [
-    {
-      nome: 'Pessimista',
-      valor: vendidoAcumulado + pipelineAberto * taxaPessimista,
-      cor: '#ef4444',
-      desc: 'Convertendo pipeline a taxa minima historica (' + Math.round(taxaPessimista * 100) + '%)',
-    },
-    {
-      nome: 'Base',
-      valor: vendidoAcumulado + pipelineAberto * taxaAtual,
-      cor: '#06b6d4',
-      desc: 'Convertendo pipeline a taxa atual (' + Math.round(taxaAtual * 100) + '%)',
-    },
-    {
-      nome: 'Otimista',
-      valor: vendidoAcumulado + pipelineAberto * taxaOtimista,
-      cor: '#10b981',
-      desc: 'Convertendo pipeline a taxa maxima historica (' + Math.round(taxaOtimista * 100) + '%)',
-    },
-  ]
+  // Agrupa wonDeals por mês (apenas meses completos anteriores ao atual)
+  const wonByMes = {}
+  ;(data.wonDeals || []).forEach(function(d) {
+    const m = d.mes || (d.dataGanho || '').substring(0, 7)
+    if (!m || m >= mesFiltro) return
+    if (!wonByMes[m]) wonByMes[m] = []
+    wonByMes[m].push(d)
+  })
+
+  // Para cada mês histórico: fração acumulada até o dia atual do mês corrente
+  const curveFractions = Object.entries(wonByMes)
+    .map(function(entry) {
+      const mes   = entry[0]
+      const deals = entry[1]
+      const totalMes = deals.reduce(function(s, d) { return s + (d.valor || 0) }, 0)
+      if (totalMes === 0) return null
+      const upToDay = deals
+        .filter(function(d) {
+          return parseInt((d.dataGanho || '').substring(8, 10) || '0') <= metrics.diaAtual
+        })
+        .reduce(function(s, d) { return s + (d.valor || 0) }, 0)
+      const frac = upToDay / totalMes
+      return { mes: mes, frac: frac }
+    })
+    .filter(function(x) { return x !== null && x.frac > 0.01 })
+
+  let cenarios
+  if (curveFractions.length >= 1 && vendidoAcumulado > 0) {
+    const fracs     = curveFractions.map(function(x) { return x.frac })
+    const fracMedia  = fracs.reduce(function(s, f) { return s + f }, 0) / fracs.length
+    const fracPessim = Math.max.apply(null, fracs)
+    const fracOtim   = Math.min.apply(null, fracs)
+    const mesPessim  = (curveFractions.find(function(x) { return x.frac === fracPessim }) || {}).mes || ''
+    const mesOtim    = (curveFractions.find(function(x) { return x.frac === fracOtim   }) || {}).mes || ''
+
+    cenarios = [
+      {
+        nome: 'Pessimista',
+        valor: Math.round(vendidoAcumulado / fracPessim),
+        cor: '#ef4444',
+        desc: 'Ref: ' + mesPessim + ' — ' + Math.round(fracPessim * 100) + '% do mes ja vendido ate o dia ' + metrics.diaAtual,
+      },
+      {
+        nome: 'Base',
+        valor: Math.round(vendidoAcumulado / fracMedia),
+        cor: '#06b6d4',
+        desc: 'Media historica: ' + Math.round(fracMedia * 100) + '% do mes vendido ate o dia ' + metrics.diaAtual,
+      },
+      {
+        nome: 'Otimista',
+        valor: Math.round(vendidoAcumulado / fracOtim),
+        cor: '#10b981',
+        desc: 'Ref: ' + mesOtim + ' — apenas ' + Math.round(fracOtim * 100) + '% do mes vendido ate o dia ' + metrics.diaAtual,
+      },
+    ]
+  } else {
+    // Fallback: historico insuficiente — projecao linear simples
+    const projecaoLinear = metrics.diaAtual > 0
+      ? Math.round(vendidoAcumulado / metrics.diaAtual * metrics.diasNoMes)
+      : vendidoAcumulado
+    cenarios = [
+      { nome: 'Pessimista', valor: Math.round(projecaoLinear * 0.85), cor: '#ef4444', desc: 'Historico insuficiente — linear -15%' },
+      { nome: 'Base',       valor: projecaoLinear,                     cor: '#06b6d4', desc: 'Projecao linear pelo ritmo atual' },
+      { nome: 'Otimista',   valor: Math.round(projecaoLinear * 1.15), cor: '#10b981', desc: 'Historico insuficiente — linear +15%' },
+    ]
+  }
 
   // ── ALT 2: Pace charts (com meta por vendedora + linha esperada) ──────────
   const daysInMonth = metrics.diasNoMes
