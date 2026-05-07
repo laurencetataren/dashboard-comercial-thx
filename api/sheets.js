@@ -1,5 +1,5 @@
 // Vercel Serverless Function — GET /api/sheets
-// Busca dados REAIS do Pipedrive (Funil Closer ID:1 open, Funil Operacao ID:4 won) e retorna JSON formatado
+// Busca dados REAIS do Pipedrive (Funil OPORTUNIDADE ID:7 + BID ID:11 open, user_id filter para won/lost) e retorna JSON formatado
 // Fallback para dados demo se PIPEDRIVE_API_KEY nao estiver configurada
 
 const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY
@@ -29,29 +29,22 @@ const PASSED_EM_TRANSITO = ['em transito', 'entregues', 'liberado faturamento', 
 // Statuses de perda na execucao
 const EXECUTION_LOST = ['no show', 'cancelada']
 
-// Mapeamento de stages — Funil Closer (ID:1) e Funil Operacao (ID:4)
+// Mapeamento de stages — Funil OPORTUNIDADE (ID:7) e BID (ID:11)
 const STAGES = {
-  63: 'Retomar Contato',
-  60: 'Reagendar Reuniao',
-   5: 'Reuniao Agendada',
-   6: 'Reuniao Realizada',
-   7: 'Formatacao Proposta',
-   8: 'Negociacao',
-  32: 'Em Homologacao',
-  34: 'Homologado',
-  53: 'Stand By',
-  61: 'Em Cotacao',
-  33: 'Negocio',
-  // Funil Operacao (won lands here)
-  25: 'Em Prospeccao',
-  30: 'Prospeccao Finalizada',
-  31: 'Oportunidade Convertida',
-  29: 'Finalizada'
+  64: 'BUGS',
+  54: 'Pedido de Cotacao',
+  55: 'Em Negociacao',
+  80: 'BID',
+  56: 'Proposta Aprovada',
+  // BID pipeline (ID:11)
+  81: 'BID Recebido',
+  82: 'Proposta Enviada',
+  83: 'Aguardando Resultado'
 }
 
-// Stages ativos do Funil Closer (ID:1) — base para fetchOpenDeals e funil do dashboard
-const FUNIL_STAGES = [63, 60, 5, 6, 7, 8, 32, 34, 53, 61, 33]
-const FUNIL_ORDER = ['Retomar Contato', 'Reagendar Reuniao', 'Reuniao Agendada', 'Reuniao Realizada', 'Formatacao Proposta', 'Negociacao', 'Em Homologacao', 'Homologado', 'Em Cotacao', 'Stand By', 'Negocio']
+// Stages ativos das farmers — Funil OPORTUNIDADE (ID:7) + BID pipeline (ID:11)
+const FUNIL_STAGES = [54, 55, 56, 83]
+const FUNIL_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'Proposta Aprovada', 'Aguardando Resultado']
 
 // Pipedrive Organizations — Clientes Ativos
 const CLIENTES_ATIVOS_FILTER_ID = 31374
