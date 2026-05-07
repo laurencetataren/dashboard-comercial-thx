@@ -1,10 +1,13 @@
 // Vercel Serverless Function — GET /api/sheets
-// Busca dados REAIS do Pipedrive (Pipeline 7 — Funil Oportunidade) e retorna JSON formatado
+// Busca dados REAIS do Pipedrive (Funil Closer ID:1 open, Funil Operacao ID:4 won) e retorna JSON formatado
 // Fallback para dados demo se PIPEDRIVE_API_KEY nao estiver configurada
 
 const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY
 const CLICKUP_API_TOKEN = process.env.CLICKUP_API_TOKEN
-const PIPELINE_ID = 7
+const CLOSER_PIPELINE_ID = 1   // Funil Closer — deals ativos das vendedoras
+const OPERACAO_PIPELINE_ID = 4  // Funil Operacao — deals ganhos (won)
+// IDs dos usuarios das vendedoras (Tayna e Gabi) — filtra won/lost por responsavel
+const VENDEDORA_USER_IDS = [24188122, 24588753]
 
 // ClickUp Flash FTL
 const CLICKUP_FLASH_FTL_LIST = '901304617884'
@@ -26,18 +29,29 @@ const PASSED_EM_TRANSITO = ['em transito', 'entregues', 'liberado faturamento', 
 // Statuses de perda na execucao
 const EXECUTION_LOST = ['no show', 'cancelada']
 
-// Mapeamento de stages do Pipeline 7
+// Mapeamento de stages — Funil Closer (ID:1) e Funil Operacao (ID:4)
 const STAGES = {
-  64: 'BUGS',
-  54: 'Pedido de Cotacao',
-  55: 'Em Negociacao',
-  80: 'BID',
-  56: 'Proposta Aprovada'
+  63: 'Retomar Contato',
+  60: 'Reagendar Reuniao',
+   5: 'Reuniao Agendada',
+   6: 'Reuniao Realizada',
+   7: 'Formatacao Proposta',
+   8: 'Negociacao',
+  32: 'Em Homologacao',
+  34: 'Homologado',
+  53: 'Stand By',
+  61: 'Em Cotacao',
+  33: 'Negocio',
+  // Funil Operacao (won lands here)
+  25: 'Em Prospeccao',
+  30: 'Prospeccao Finalizada',
+  31: 'Oportunidade Convertida',
+  29: 'Finalizada'
 }
 
-// Stages que aparecem no funil do dashboard (exclui BUGS e BID)
-const FUNIL_STAGES = [54, 55, 56]
-const FUNIL_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'Proposta Aprovada']
+// Stages ativos do Funil Closer (ID:1) — base para fetchOpenDeals e funil do dashboard
+const FUNIL_STAGES = [63, 60, 5, 6, 7, 8, 32, 34, 53, 61, 33]
+const FUNIL_ORDER = ['Retomar Contato', 'Reagendar Reuniao', 'Reuniao Agendada', 'Reuniao Realizada', 'Formatacao Proposta', 'Negociacao', 'Em Homologacao', 'Homologado', 'Em Cotacao', 'Stand By', 'Negocio']
 
 // Pipedrive Organizations — Clientes Ativos
 const CLIENTES_ATIVOS_FILTER_ID = 31374
@@ -134,18 +148,18 @@ async function fetchOpenDeals() {
 }
 
 async function fetchWonDeals(sinceDate) {
-  // Busca won deals filtrados por pipeline 7 e data minima (reduz paginacao), max 2 paginas
+  // Busca won deals das vendedoras (filtra por user_id — independente de pipeline)
   const params = { status: 'won', user_id: '0', sort: 'update_time DESC' }
   if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 2)
+  const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 3)
   return deals
 }
 
 async function fetchLostDeals(sinceDate) {
-  // Busca lost deals filtrados por pipeline 7 e data minima (reduz paginacao), max 2 paginas
+  // Busca lost deals das vendedoras (filtra por user_id — independente de pipeline)
   const params = { status: 'lost', user_id: '0', sort: 'update_time DESC' }
   if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => d.pipeline_id === PIPELINE_ID, 2)
+  const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 3)
   return deals
 }
 
