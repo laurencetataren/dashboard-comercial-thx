@@ -972,13 +972,21 @@ async function processCloserKanban(rawTasks, mesFiltro) {
   return { kanban: kanbanEnriched, eficiencia }
 }
 
-// Metas (hardcoded por enquanto, pode migrar para planilha depois)
+// Metas mensais — valores alinhados com Pipedrive Insights "Negocios ganhos Farmer"
 function getMetas() {
   return [
-    { mes: '2026-01', meta_valor: 800000, meta_deals: 50 },
-    { mes: '2026-02', meta_valor: 850000, meta_deals: 52 },
-    { mes: '2026-03', meta_valor: 400000, meta_deals: 25 },
-    { mes: '2026-04', meta_valor: 500000, meta_deals: 30 }
+    { mes: '2026-01', meta_valor:  800000, meta_deals:  50 },
+    { mes: '2026-02', meta_valor:  850000, meta_deals:  52 },
+    { mes: '2026-03', meta_valor:  400000, meta_deals:  25 },
+    { mes: '2026-04', meta_valor:  500000, meta_deals:  30 },
+    { mes: '2026-05', meta_valor:  500000, meta_deals:  56 },
+    { mes: '2026-06', meta_valor:  600000, meta_deals:  67 },
+    { mes: '2026-07', meta_valor:  700000, meta_deals:  78 },
+    { mes: '2026-08', meta_valor: 1000000, meta_deals: 111 },
+    { mes: '2026-09', meta_valor: 1150000, meta_deals: 128 },
+    { mes: '2026-10', meta_valor: 1300000, meta_deals: 145 },
+    { mes: '2026-11', meta_valor: 1300000, meta_deals: 145 },
+    { mes: '2026-12', meta_valor: 1300000, meta_deals: 145 }
   ]
 }
 
