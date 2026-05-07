@@ -369,6 +369,27 @@ function buildHistoricoMensal(wonDeals, lostDeals, openDeals) {
   return Object.values(meses)
 }
 
+
+function buildProporcaoVendedoras(wonDeals) {
+  // Calcula proporcao de receita de cada vendedora nos ultimos 6 meses (todos os wonDeals, sem filtro de mes)
+  const byVendedora = {}
+  Object.values(VENDEDORAS).forEach(nome => { byVendedora[nome] = 0 })
+  wonDeals.forEach(d => {
+    const v = d.vendedora
+    if (byVendedora[v] !== undefined) {
+      byVendedora[v] += d.valor || 0
+    }
+  })
+  const total = Object.values(byVendedora).reduce((s, v) => s + v, 0)
+  if (total === 0) {
+    const n = Object.keys(byVendedora).length || 2
+    Object.keys(byVendedora).forEach(k => { byVendedora[k] = 1 / n })
+    return byVendedora
+  }
+  Object.keys(byVendedora).forEach(k => { byVendedora[k] = byVendedora[k] / total })
+  return byVendedora
+}
+
 function buildAtividades(activities) {
   // Agrupa atividades por user
   // Inicializa TODAS as vendedoras para garantir presenca mesmo sem atividades
@@ -1046,6 +1067,7 @@ export default async function handler(req, res) {
       performanceVendedoras: buildPerformance(wonDeals, mesFiltro),
       motivosPerda: buildMotivosPerda(lostDeals, mesFiltro),
       historicoMensal: buildHistoricoMensal(wonDeals, lostDeals, openDeals),
+      proporcaoVendedoras: buildProporcaoVendedoras(wonDeals),
       metas: getMetas(),
       atividades,
       clientesAtivos,
@@ -1122,6 +1144,7 @@ function getDemoData() {
       { motivo: 'Concorrencia', count: 1 },
       { motivo: 'Sem resposta', count: 1 }
     ],
+    proporcaoVendedoras: { 'Tayna Kazial': 0.55, 'Gabrieli Muneretto': 0.45 },
     historicoMensal: [
       { mes: '2025-10', won_count: 52, won_value: 900000, lost_count: 180, lost_value: 450000, new_count: 280, conversion_rate: 22.4, ticket_medio: 17307, ciclo_medio_dias: 18 },
       { mes: '2025-11', won_count: 45, won_value: 668000, lost_count: 200, lost_value: 520000, new_count: 310, conversion_rate: 18.4, ticket_medio: 14844, ciclo_medio_dias: 21 },
