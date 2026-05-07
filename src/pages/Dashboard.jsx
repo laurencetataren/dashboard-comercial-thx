@@ -1995,7 +1995,7 @@ function TabProjecao({ data, metrics }) {
 
   // ── ALT 2: Pace charts (com meta por vendedora + linha esperada por curva histórica) ──
   const daysInMonth = metrics.diasNoMes
-  const milestones  = [1, 5, 10, 15, 20, 25, daysInMonth].filter((v, i, a) => a.indexOf(v) === i)
+  const milestones  = Array.from({ length: daysInMonth }, function(_, i) { return i + 1 })
 
   // Helper: fração histórica média acumulada até o dia d do mês
   const fracaoMediaDia = function(d) {
