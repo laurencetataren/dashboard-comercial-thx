@@ -2064,15 +2064,16 @@ function TabProjecao({ data, metrics }) {
     taxa90dPorVendedora[s.short] = total > 0 ? wonVal / total : taxaAtual
   })
 
-  const volumeMensalData = [1, 2, 3, 4].map(sem => {
-    const fracSem = fracaoMediaDia(Math.round(daysInMonth * sem / 4))
-    const point   = { periodo: 'Sem ' + sem }
+  const volumeMensalData = Array.from({ length: daysInMonth }, function(_, i) {
+    const d = i + 1
+    const fracD = fracaoMediaDia(d)
+    const point = { periodo: 'D' + d }
     sellerDefs.forEach(s => {
-      const stats   = sellerStats[s.short]
-      const meta    = metaPerSeller[s.short]
-      const taxa90  = taxa90dPorVendedora[s.short] || taxaAtual
-      // Gap projetado até essa semana: quanto ainda falta dado o padrão histórico
-      const wonEsperado = meta * fracSem
+      const stats  = sellerStats[s.short]
+      const meta   = metaPerSeller[s.short]
+      const taxa90 = taxa90dPorVendedora[s.short] || taxaAtual
+      // Pipeline necessario no dia d para cobrir o gap restante
+      const wonEsperado = meta * fracD
       const gap = Math.max(meta - Math.max(stats.wonValor, wonEsperado), 0)
       const needed = taxa90 > 0 ? gap / taxa90 : 0
       point[s.short + '_necessario'] = Math.round(needed)
@@ -2109,17 +2110,18 @@ function TabProjecao({ data, metrics }) {
 
   const pipeNecessarioTotal = taxaAtual > 0 ? metaMensal / taxaAtual : 0
 
-  const volumePorVendedoraMensalData = [1, 2, 3, 4].map(sem => {
-    const point = { periodo: 'Sem ' + sem }
+  const volumePorVendedoraMensalData = Array.from({ length: daysInMonth }, function(_, i) {
+    const d = i + 1
+    const point = { periodo: 'D' + d }
     sellerDefs.forEach(s => {
       const gerado = allDealsThisMonth
-        .filter(d => {
-          if (d.vendedora !== s.nome) return false
-          const day = parseInt((d.dataCriacao || '').split('-')[2] || '0')
-          return Math.ceil(day / 7) <= sem
+        .filter(function(deal) {
+          if (deal.vendedora !== s.nome) return false
+          const day = parseInt((deal.dataCriacao || '').split('-')[2] || '0')
+          return day <= d
         })
-        .reduce((acc, d) => acc + (d.valor || 0), 0)
-      const metaPipe = pipeNecessarioTotal * (normProps[s.nome] || 0.5) * (sem / 4)
+        .reduce(function(acc, deal) { return acc + (deal.valor || 0) }, 0)
+      const metaPipe = pipeNecessarioTotal * (normProps[s.nome] || 0.5) * (d / daysInMonth)
       point[s.short + '_gerado'] = Math.round(gerado)
       point[s.short + '_meta']   = Math.round(metaPipe)
     })
@@ -2282,7 +2284,7 @@ function TabProjecao({ data, metrics }) {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="periodo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="periodo" interval={4} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
                   <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
                   <Area type="monotone" dataKey="Tayna_pipeline"      name="Tayna Pipeline"      stroke="#06b6d4" strokeWidth={2} fill="url(#gradTaynaVol)" />
@@ -2349,7 +2351,7 @@ function TabProjecao({ data, metrics }) {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="periodo" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="periodo" interval={4} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => fmtCurrencyShort(v)} />
                   <Tooltip content={<CustomTooltip formatter={v => fmtCurrency(v)} />} />
                   <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', paddingTop: 8 }} />
