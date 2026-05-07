@@ -2041,7 +2041,10 @@ function TabProjecao({ data, metrics }) {
     const dayOfMonth   = mondayDayOfMonth + i
     const fracDia      = fracaoMediaDia(dayOfMonth)
     sellerDefs.forEach(s => {
-      point[s.short + '_realizado'] = Math.round(sellerStats[s.short].dailyRate * (i + 1))
+      // Realizado: apenas ate o dia atual da semana (mondayOff = 0=Seg ... 4=Sex)
+      point[s.short + '_realizado'] = i <= mondayOff
+        ? Math.round(sellerStats[s.short].dailyRate * (i + 1))
+        : null
       // esperado acumulado nessa semana = (fração do dia - fração antes da semana) × meta
       point[s.short + '_esperado']  = Math.round(metaPerSeller[s.short] * Math.max(fracDia - fracBaseWeek, 0))
     })
