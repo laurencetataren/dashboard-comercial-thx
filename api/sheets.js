@@ -1161,7 +1161,25 @@ export default async function handler(req, res) {
       mesesDisponiveis.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
     }
 
-    const data = {
+    // Taxa de conversao historica: ultimos 90 dias por data de fechamento
+    const cutoff90d = new Date(now); cutoff90d.setDate(cutoff90d.getDate() - 90)
+    const cutoff90dStr = cutoff90d.toISOString().substring(0, 10)
+    const won90 = wonDeals.filter(d => (d.dataGanho || '') >= cutoff90dStr)
+    const lost90 = lostDeals.filter(d => (d.dataPerda || '') >= cutoff90dStr)
+    const total90 = won90.length + lost90.length
+    const taxaConversaoHistorica90d = total90 > 0 ? Math.round((won90.length / total90) * 1000) / 10 : null
+
+    // Taxa historica 90d por vendedora (por count de deals)
+    const VENDEDORA_NAMES = ['Tayna Kazial', 'Gabrieli Muneretto']
+    const taxaConversaoHistorica90dPorVendedora = {}
+    VENDEDORA_NAMES.forEach(nome => {
+      const w90 = won90.filter(d => d.vendedora === nome)
+      const l90 = lost90.filter(d => d.vendedora === nome)
+      const t90 = w90.length + l90.length
+      taxaConversaoHistorica90dPorVendedora[nome] = t90 > 0 ? Math.round((w90.length / t90) * 1000) / 10 : null
+    })
+
+        const data = {
       timestamp: now.toISOString(),
       demo: false,
       mesAtual,
@@ -1176,6 +1194,8 @@ export default async function handler(req, res) {
       historicoMensal: buildHistoricoMensal(wonDeals, lostDeals, openDeals),
       proporcaoVendedoras: buildProporcaoVendedoras(wonDeals),
       metas: getMetas(),
+      taxaConversaoHistorica90d,
+      taxaConversaoHistorica90dPorVendedora,
       atividades,
       clientesAtivos,
       faturado: faturadoData,

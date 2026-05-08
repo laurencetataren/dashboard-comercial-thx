@@ -94,6 +94,8 @@ function computeMetrics(data) {
   // Taxa de conversao (won / (won + lost))
   const totalDecididos = totalWonCount + totalLostCount
   const taxaConversao = totalDecididos > 0 ? (totalWonCount / totalDecididos) * 100 : 0
+  // Taxa historica dos ultimos 90 dias (calculada no backend por data de fechamento)
+  const taxaConversaoHistorica = data.taxaConversaoHistorica90d ?? taxaConversao
 
   // Performance por vendedora
   const vendedoras = data.performanceVendedoras || []
@@ -135,6 +137,7 @@ function computeMetrics(data) {
     totalFunilCount,
     ticketMedio,
     taxaConversao,
+    taxaConversaoHistorica,
     metaValor,
     metaDeals,
     atingimentoValor,

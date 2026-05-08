@@ -1920,7 +1920,7 @@ function TabProjecao({ data, metrics }) {
 
   const metaMensal  = metrics.metaValor
   const metaSemanal = metaMensal / 4
-  const taxaAtual   = (metrics.taxaConversao || 20) / 100
+  const taxaAtual   = (metrics.taxaConversaoHistorica ?? metrics.taxaConversao ?? 20) / 100
 
   // Meta individual proporcional ao histórico
   const metaPerSeller = {}
@@ -2052,19 +2052,12 @@ function TabProjecao({ data, metrics }) {
   })
 
   // ── ALT 3: Volume Oportunidades — taxa conversão 90d por vendedora ──────────
-  // Calcula taxa de conversão dos últimos 90 dias individualmente por vendedora
-  const cutoff90dStr = (function() {
-    var d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().substring(0, 10)
-  })()
-
+  // Taxa de conversao historica 90d por vendedora — vem do backend (todos os deals dos ultimos 90d, nao so o mes atual)
+  const taxa90dBackend = data.taxaConversaoHistorica90dPorVendedora || {}
   const taxa90dPorVendedora = {}
   sellerDefs.forEach(s => {
-    const won90  = (data.wonDeals  || []).filter(d => d.vendedora === s.nome && (d.dataGanho || '') >= cutoff90dStr)
-    const lost90 = (data.lostDeals || []).filter(d => d.vendedora === s.nome && (d.dataPerda || '') >= cutoff90dStr)
-    const wonVal  = won90.reduce((sum, d) => sum + (d.valor || 0), 0)
-    const lostVal = lost90.reduce((sum, d) => sum + (d.valor || 0), 0)
-    const total = wonVal + lostVal
-    taxa90dPorVendedora[s.short] = total > 0 ? wonVal / total : taxaAtual
+    const backendRate = taxa90dBackend[s.nome]
+    taxa90dPorVendedora[s.short] = backendRate != null ? backendRate / 100 : taxaAtual
   })
 
   // Helper: vendido acumulado estimado ate o dia d do mes, por vendedora
