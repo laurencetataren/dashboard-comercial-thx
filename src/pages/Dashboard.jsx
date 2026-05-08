@@ -918,7 +918,36 @@ function TabInsideSales({ data, metrics }) {
     motivosByVendedora[key][motivo] = (motivosByVendedora[key][motivo] || 0) + 1
   })
 
+  // Meta por vendedora proporcional ao histórico
+  const proporcoes = data.proporcaoVendedoras || {}
+  const totalProp = chartVendedoras.reduce((s, v) => s + (proporcoes[v.nomeCompleto] || 0), 0)
+  const metaPerSeller = {}
+  chartVendedoras.forEach(v => {
+    const prop = totalProp > 0 ? (proporcoes[v.nomeCompleto] || 0) / totalProp : 1 / Math.max(chartVendedoras.length, 1)
+    metaPerSeller[v.nomeCompleto] = metrics.metaValor * prop
+  })
   const metaPerVendedora = metrics.metaValor / Math.max(chartVendedoras.length, 1)
+
+  // Pipeline gerado por vendedora no mes (valor de todos deals criados: open+won+lost)
+  const pipelineGeradoByVendedora = {}
+  const seenPipeIds = new Set()
+  ;[...(data.openDeals || []), ...(data.wonDeals || []), ...(data.lostDeals || [])].forEach(d => {
+    if (seenPipeIds.has(d.id)) return; seenPipeIds.add(d.id)
+    const criacao = d.dataCriacao || ''
+    if (!criacao.startsWith(mesFiltro)) return
+    const key = d.vendedora || 'Sem dono'
+    if (!pipelineGeradoByVendedora[key]) pipelineGeradoByVendedora[key] = 0
+    pipelineGeradoByVendedora[key] += d.valor || 0
+  })
+
+  // Motivos de perda por vendedora (corrigido: campo d.motivo)
+  const motivosByVendedoraFixed = {}
+  ;(data.lostDeals || []).forEach(d => {
+    const key = d.vendedora || 'Sem dono'
+    const motivo = d.motivo || 'Nao informado'
+    if (!motivosByVendedoraFixed[key]) motivosByVendedoraFixed[key] = {}
+    motivosByVendedoraFixed[key][motivo] = (motivosByVendedoraFixed[key][motivo] || 0) + 1
+  })
 
   return (
     <div className="space-y-8">
@@ -971,27 +1000,55 @@ function TabInsideSales({ data, metrics }) {
                     const tkm = op.count > 0 ? op.valor / op.count : 0
                     return (
                       <td key={i} className="py-4 px-3 text-center">
-                        <p className="text-2xl font-bold text-violet-400">{op.count}</p>
-                        <p className="text-xs text-white/40">{fmtCurrencyShort(op.valor)}</p>
-                        <p className="text-[10px] text-white/20 mt-0.5">TM {fmtCurrencyShort(tkm)}</p>
+                        <p className="text-3xl font-bold text-violet-400">{fmtCurrencyShort(op.valor)}</p>
+                        <p className="text-sm text-white/50 mt-1">{op.count} deals</p>
+                        <p className="text-[10px] text-white/25 mt-0.5">TM {fmtCurrencyShort(tkm)}</p>
                       </td>
                     )
                   })}
                 </tr>
-                {/* Vendido x Meta */}
+                {/* Vendido x Meta — pace do dia */}
                 <tr className="border-b border-white/[0.03]">
                   <td className="py-4 px-3">
                     <p className="text-white/60 font-medium">Vendido x Meta</p>
-                    <p className="text-[10px] text-white/25">meta: {fmtCurrencyShort(metaPerVendedora)}</p>
+                    <p className="text-[10px] text-white/25">ritmo esperado ate hoje</p>
                   </td>
                   {chartVendedoras.map((v, i) => {
-                    const pctMeta = metaPerVendedora > 0 ? (v.valor / metaPerVendedora) * 100 : 0
-                    const metaColor = pctMeta >= 100 ? 'text-emerald-400' : pctMeta >= 80 ? 'text-amber-400' : 'text-rose-400'
+                    const metaSeller = metaPerSeller[v.nomeCompleto] || metaPerVendedora
+                    const esperadoHoje = metrics.diasNoMes > 0 ? metaSeller * (metrics.diaAtual / metrics.diasNoMes) : metaSeller
+                    const pacePct = esperadoHoje > 0 ? (v.valor / esperadoHoje) * 100 : 0
+                    const pctMeta = metaSeller > 0 ? (v.valor / metaSeller) * 100 : 0
+                    const paceColor = pacePct >= 100 ? 'text-emerald-400' : pacePct >= 80 ? 'text-amber-400' : 'text-rose-400'
+                    const barColor = pacePct >= 100 ? 'emerald' : pacePct >= 80 ? 'amber' : 'rose'
                     return (
                       <td key={i} className="py-4 px-3 text-center">
-                        <p className={`text-2xl font-bold ${metaColor}`}>{fmtCurrencyShort(v.valor)}</p>
-                        <ProgressBar value={v.valor} max={metaPerVendedora} color={pctMeta >= 100 ? 'emerald' : pctMeta >= 80 ? 'amber' : 'rose'} size="sm" />
-                        <p className="text-[10px] text-white/25 mt-1">{fmtPct(pctMeta, 0)} da meta | TM {fmtCurrencyShort(v.ticketMedio)}</p>
+                        <p className={`text-2xl font-bold ${paceColor}`}>{fmtCurrencyShort(v.valor)}</p>
+                        <ProgressBar value={v.valor} max={metaSeller} color={barColor} size="sm" />
+                        <p className="text-[10px] text-white/25 mt-1">{fmtPct(pctMeta, 0)} da meta | pace {fmtPct(pacePct, 0)}%</p>
+                      </td>
+                    )
+                  })}
+                </tr>
+                {/* Oportunidades x Meta — pipeline gerado vs necessario */}
+                <tr className="border-b border-white/[0.03]">
+                  <td className="py-4 px-3">
+                    <p className="text-white/60 font-medium">Oportunidades x Meta</p>
+                    <p className="text-[10px] text-white/25">pipeline gerado vs necessario</p>
+                  </td>
+                  {chartVendedoras.map((v, i) => {
+                    const metaSeller = metaPerSeller[v.nomeCompleto] || metaPerVendedora
+                    const taxaHist = (metrics.taxaConversaoHistorica ?? metrics.taxaConversao ?? 20) / 100
+                    const pipeNecessarioMes = taxaHist > 0 ? metaSeller / taxaHist : 0
+                    const pipeEsperadoHoje = metrics.diasNoMes > 0 ? pipeNecessarioMes * (metrics.diaAtual / metrics.diasNoMes) : pipeNecessarioMes
+                    const pipeGerado = pipelineGeradoByVendedora[v.nomeCompleto] || 0
+                    const pacePct = pipeEsperadoHoje > 0 ? (pipeGerado / pipeEsperadoHoje) * 100 : 0
+                    const paceColor = pacePct >= 100 ? 'text-emerald-400' : pacePct >= 80 ? 'text-amber-400' : 'text-rose-400'
+                    const barColor = pacePct >= 100 ? 'emerald' : pacePct >= 80 ? 'amber' : 'rose'
+                    return (
+                      <td key={i} className="py-4 px-3 text-center">
+                        <p className={`text-2xl font-bold ${paceColor}`}>{fmtCurrencyShort(pipeGerado)}</p>
+                        <ProgressBar value={pipeGerado} max={pipeEsperadoHoje} color={barColor} size="sm" />
+                        <p className="text-[10px] text-white/25 mt-1">meta dia: {fmtCurrencyShort(pipeEsperadoHoje)} | pace {fmtPct(pacePct, 0)}%</p>
                       </td>
                     )
                   })}
@@ -1058,33 +1115,46 @@ function TabInsideSales({ data, metrics }) {
         </div>
       </GlassCard>
 
-      {/* Motivos de perda — geral + por vendedora */}
+      {/* Motivos de perda — por vendedora */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <GlassCard>
-          <div className="p-6">
-            <SectionTitle icon={XCircle} description={`${totalLost} deals perdidos analisados`}>Motivos de Perda (Geral)</SectionTitle>
-            <div className="space-y-3 mt-4">
-              {motivosData.map((m, i) => {
-                const pct = totalLost > 0 ? (m.count / totalLost) * 100 : 0
-                return (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full shrink-0" style={{ background: m.fill }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-white/70 truncate">{m.motivoFull}</span>
-                        <span className="text-sm font-medium text-white/50 ml-2">{m.count}x ({fmtPct(pct, 0)})</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: m.fill }} />
-                      </div>
-                    </div>
+        {chartVendedoras.map((v, vi) => {
+          const motivosV = motivosByVendedoraFixed[v.nomeCompleto] || {}
+          const totalV = Object.values(motivosV).reduce((s, c) => s + c, 0)
+          const motivosArr = Object.entries(motivosV).sort((a, b) => b[1] - a[1]).slice(0, 6)
+          const CORES = ['#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#10b981', '#ec4899']
+          return (
+            <GlassCard key={vi}>
+              <div className="p-6">
+                <SectionTitle icon={XCircle} description={`${totalV} deals perdidos`}>
+                  Motivos de Perda — {v.nome}
+                </SectionTitle>
+                {motivosArr.length === 0 ? (
+                  <p className="text-white/25 text-sm mt-4">Nenhuma perda registrada no periodo</p>
+                ) : (
+                  <div className="space-y-3 mt-4">
+                    {motivosArr.map(([motivo, count], i) => {
+                      const pct = totalV > 0 ? (count / totalV) * 100 : 0
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full shrink-0" style={{ background: CORES[i] }} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm text-white/70 truncate">{motivo}</span>
+                              <span className="text-sm font-medium text-white/50 ml-2">{count}x ({fmtPct(pct, 0)})</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: CORES[i] }} />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
-          </div>
-        </GlassCard>
-
+                )}
+              </div>
+            </GlassCard>
+          )
+        })}
       </div>
 
       {/* ============================================= */}
