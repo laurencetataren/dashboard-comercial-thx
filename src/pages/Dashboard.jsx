@@ -2143,9 +2143,8 @@ function TabProjecao({ data, metrics }) {
           return day <= d
         })
         .reduce(function(acc, deal) { return acc + (deal.valor || 0) }, 0)
-      // Alvo acumulado: quanto de pipeline deveria ter sido gerado ate o dia d
-      // Usa taxaConvPipe (taxa historica geral) para escala correta
-      const metaAcumulada = taxaConvPipe > 0 ? (meta * fracaoMediaDia(d)) / taxaConvPipe : 0
+      // Alvo acumulado: usa taxa historica 90d individual por vendedora
+      const metaAcumulada = taxa90 > 0 ? (meta * fracaoMediaDia(d)) / taxa90 : 0
       point[s.short + '_gerado'] = Math.round(gerado)
       point[s.short + '_meta']   = Math.round(metaAcumulada)
     })
@@ -2182,7 +2181,7 @@ function TabProjecao({ data, metrics }) {
       // Alvo acumulado para a semana ate o dia i
       const fracDiaI   = Math.max(fracaoMediaDia(dayOfMonthI) - fracBaseWeek, 0)
       const metaSemana = meta * (fracSemanaFim > 0 ? fracSemanaFim : 1 / 4.33)
-      const metaAcum   = taxaConvPipe > 0 ? metaSemana * (fracSemanaFim > 0 ? fracDiaI / fracSemanaFim : (i + 1) / 5) / taxaConvPipe : 0
+      const metaAcum   = taxa90 > 0 ? metaSemana * (fracSemanaFim > 0 ? fracDiaI / fracSemanaFim : (i + 1) / 5) / taxa90 : 0
       point[s.short + '_gerado'] = Math.round(gerado)
       point[s.short + '_meta']   = Math.round(metaAcum)
     })
@@ -2370,7 +2369,7 @@ function TabProjecao({ data, metrics }) {
           <div className="p-6">
             <SectionTitle icon={Layers}>Volume Oportunidades por Vendedora | Mes</SectionTitle>
             <p className="text-[11px] text-white/30 -mt-2 mb-4">
-              {'Pipeline gerado por vendedora vs necessario (taxa conv. ' + fmtPct(metrics.taxaConversao, 0) + ')'}
+              {'Pipeline gerado por vendedora vs necessario (taxa conv. historica ' + fmtPct(metrics.taxaConversaoHistorica ?? metrics.taxaConversao, 0) + ')'}
             </p>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -2404,7 +2403,7 @@ function TabProjecao({ data, metrics }) {
           <div className="p-6">
             <SectionTitle icon={Layers}>Volume Oportunidades por Vendedora | Semana</SectionTitle>
             <p className="text-[11px] text-white/30 -mt-2 mb-4">
-              {'Pipeline gerado por vendedora vs necessario (taxa conv. ' + fmtPct(metrics.taxaConversao, 0) + ')'}
+              {'Pipeline gerado por vendedora vs necessario (taxa conv. historica ' + fmtPct(metrics.taxaConversaoHistorica ?? metrics.taxaConversao, 0) + ')'}
             </p>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
