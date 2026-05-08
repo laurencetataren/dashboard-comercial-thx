@@ -189,18 +189,20 @@ async function fetchOpenDeals() {
 }
 
 async function fetchWonDeals(sinceDate) {
-  // Busca won deals das vendedoras (filtra por user_id — independente de pipeline)
-  const params = { status: 'won', user_id: '0', sort: 'update_time DESC' }
+  // Busca won deals das vendedoras — sort por won_time DESC garante que deals
+  // mais recentemente ganhos aparecem primeiro. maxPages=20 = ate 2000 deals.
+  const params = { status: 'won', user_id: '0', sort: 'won_time DESC' }
   if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 3)
+  const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 20)
   return deals
 }
 
 async function fetchLostDeals(sinceDate) {
-  // Busca lost deals das vendedoras (filtra por user_id — independente de pipeline)
-  const params = { status: 'lost', user_id: '0', sort: 'update_time DESC' }
+  // Busca lost deals das vendedoras — sort por lost_time DESC.
+  // maxPages=20 = ate 2000 deals (cobre limpezas de CRM em lote).
+  const params = { status: 'lost', user_id: '0', sort: 'lost_time DESC' }
   if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 3)
+  const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 20)
   return deals
 }
 
