@@ -395,7 +395,7 @@ function buildHistoricoMensal(wonDeals, lostDeals, openDeals) {
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    meses[key] = { mes: key, won_count: 0, won_value: 0, lost_count: 0, lost_value: 0, new_count: 0, conversion_rate: 0, ticket_medio: 0, ciclo_medio_dias: 0 }
+    meses[key] = { mes: key, won_count: 0, won_value: 0, lost_count: 0, lost_value: 0, new_count: 0, conversion_rate: 0, ticket_medio: 0, ciclo_medio_dias: 0, _cicloSum: 0, _cicloN: 0 }
   }
 
   wonDeals.forEach(d => {
@@ -403,6 +403,10 @@ function buildHistoricoMensal(wonDeals, lostDeals, openDeals) {
     if (meses[m]) {
       meses[m].won_count++
       meses[m].won_value += d.valor
+      if (d.cicloDias > 0) {
+        meses[m]._cicloSum += d.cicloDias
+        meses[m]._cicloN++
+      }
     }
   })
 
@@ -419,6 +423,8 @@ function buildHistoricoMensal(wonDeals, lostDeals, openDeals) {
     const total = m.won_count + m.lost_count
     m.conversion_rate = total > 0 ? Math.round((m.won_count / total) * 1000) / 10 : 0
     m.ticket_medio = m.won_count > 0 ? Math.round(m.won_value / m.won_count) : 0
+    m.ciclo_medio_dias = m._cicloN > 0 ? Math.round(m._cicloSum / m._cicloN) : 0
+    delete m._cicloSum; delete m._cicloN
   })
 
   return Object.values(meses)
