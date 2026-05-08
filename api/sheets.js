@@ -388,7 +388,9 @@ function buildMotivosPerda(lostDeals, mesAtual) {
 }
 
 function buildHistoricoMensal(wonDeals, lostDeals, openDeals) {
-  // Agrupa por mes (ultimos 6 meses)
+  // Agrupa por mes de CRIACAO do deal (add_time = dataCriacao)
+  // Motivo: agregar por data de fechamento distorce quando ha limpeza de CRM em lote.
+  // Agrupando por criacao, cada mes mostra: "dos deals que entraram nesse mes, quantos % viraram venda?"
   const meses = {}
   const now = new Date()
 
@@ -398,9 +400,10 @@ function buildHistoricoMensal(wonDeals, lostDeals, openDeals) {
     meses[key] = { mes: key, won_count: 0, won_value: 0, lost_count: 0, lost_value: 0, new_count: 0, conversion_rate: 0, ticket_medio: 0, ciclo_medio_dias: 0, _cicloSum: 0, _cicloN: 0 }
   }
 
+  // Won: agrupa pelo mes em que o deal foi CRIADO (dataCriacao = add_time)
   wonDeals.forEach(d => {
-    const m = d.mes
-    if (meses[m]) {
+    const m = d.dataCriacao ? d.dataCriacao.substring(0, 7) : null
+    if (m && meses[m]) {
       meses[m].won_count++
       meses[m].won_value += d.valor
       if (d.cicloDias > 0) {
@@ -410,15 +413,17 @@ function buildHistoricoMensal(wonDeals, lostDeals, openDeals) {
     }
   })
 
+  // Lost: agrupa pelo mes em que o deal foi CRIADO
   lostDeals.forEach(d => {
-    const m = d.mes
-    if (meses[m]) {
+    const m = d.dataCriacao ? d.dataCriacao.substring(0, 7) : null
+    if (m && meses[m]) {
       meses[m].lost_count++
       meses[m].lost_value += d.valor
     }
   })
 
   // Calcula metricas derivadas
+  // Nota: meses recentes terao taxa menor porque muitos deals ainda estao abertos
   Object.values(meses).forEach(m => {
     const total = m.won_count + m.lost_count
     m.conversion_rate = total > 0 ? Math.round((m.won_count / total) * 1000) / 10 : 0
