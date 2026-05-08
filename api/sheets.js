@@ -342,6 +342,7 @@ function processLostDeals(deals, mesAtual) {
       empresa: getOrgName(d),
       motivo: d.lost_reason || 'Sem motivo',
       dataCriacao: addTime,
+      dataPerda: d.lost_time ? d.lost_time.substring(0, 10) : (d.close_time ? d.close_time.substring(0, 10) : ''),
       mes
     }
   })
