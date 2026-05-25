@@ -48,6 +48,11 @@ const FUNIL_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'Proposta Aprovada', 
 
 // Pipedrive Organizations — Clientes Ativos
 const CLIENTES_ATIVOS_FILTER_ID = 31374
+
+// IDs de deals EXCLUIDOS da analise — erro operacional maio/2026
+// Causa: cards duplicados APOS dar won (correto seria duplicar ANTES).
+// Esses sao os IDs das duplicatas (ID maior de cada par). A partir de jun/2026 nao ocorre mais.
+const DEALS_EXCLUIR_DUPLICATA = new Set([6641, 6635, 6614, 6590, 6605, 6568, 6561, 6551, 6531, 6520, 6483, 6481, 6458, 6459])
 const ORG_PERFIL_COMPRA_KEY = 'e52751b2ca4cdbe74f9f473e158d2f8689c7e66f'
 const PERFIL_COMPRA_MAP = { '249': 'A - Cotacao diaria', '250': 'B - Cotacao semanal', '251': 'C - Cotacao esporadica' }
 
@@ -197,7 +202,12 @@ async function fetchWonDeals(sinceDate) {
   // Dedup por ID: paginacao offset do Pipedrive retorna o mesmo deal em paginas
   // consecutivas quando multiplos deals tem won_time identico (ex: cotacoes fechadas em lote)
   const seen = new Set()
-  return deals.filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true })
+  return deals.filter(d => {
+    if (seen.has(d.id)) return false
+    seen.add(d.id)
+    if (DEALS_EXCLUIR_DUPLICATA.has(d.id)) return false  // erro operacional mai/2026
+    return true
+  })
 }
 
 async function fetchLostDeals(sinceDate) {
