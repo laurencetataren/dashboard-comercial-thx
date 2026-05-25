@@ -194,7 +194,10 @@ async function fetchWonDeals(sinceDate) {
   const params = { status: 'won', pipeline_id: '7', user_id: '0', sort: 'won_time DESC' }
   if (sinceDate) params.start_date = sinceDate
   const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 20)
-  return deals
+  // Dedup por ID: paginacao offset do Pipedrive retorna o mesmo deal em paginas
+  // consecutivas quando multiplos deals tem won_time identico (ex: cotacoes fechadas em lote)
+  const seen = new Set()
+  return deals.filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true })
 }
 
 async function fetchLostDeals(sinceDate) {
@@ -203,7 +206,9 @@ async function fetchLostDeals(sinceDate) {
   const params = { status: 'lost', pipeline_id: '7', user_id: '0', sort: 'lost_time DESC' }
   if (sinceDate) params.start_date = sinceDate
   const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 20)
-  return deals
+  // Dedup por ID: mesmo motivo que fetchWonDeals
+  const seen = new Set()
+  return deals.filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true })
 }
 
 async function fetchActivities(startDate, endDate) {
