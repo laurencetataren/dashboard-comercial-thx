@@ -1,5 +1,5 @@
 // Vercel Serverless Function — GET /api/sheets
-// Busca dados REAIS do Pipedrive (Funil OPORTUNIDADE ID:7 + BID ID:11 open, user_id filter para won/lost) e retorna JSON formatado
+// Busca dados REAIS do Pipedrive (Funil OPORTUNIDADE ID:7 + BID ID:11 open; won/lost = pipeline 7 de todas as vendedoras, exceto CEO) e retorna JSON formatado
 // Fallback para dados demo se PIPEDRIVE_API_KEY nao estiver configurada
 
 const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY
@@ -31,11 +31,12 @@ const EXECUTION_LOST = ['no show', 'cancelada']
 
 // Mapeamento de stages — Funil OPORTUNIDADE (ID:7) e BID (ID:11)
 const STAGES = {
-  64: 'BUGS',
-  54: 'Pedido de Cotacao',
-  55: 'Em Negociacao',
+  64: 'BUGS',                       // Pedido de Frete (triagem) — nao incluido no funil por padrao
+  54: 'Pedido de Cotacao',         // Pipedrive: "Cotacao"
+  89: 'Qualificacao de Motorista', // estava faltando — agora rastreado
+  55: 'Em Negociacao',             // Pipedrive: "Negociacao"
   80: 'BID',
-  56: 'Proposta Aprovada',
+  56: 'Proposta Aprovada',         // Pipedrive: "Proposta aprovada"
   // BID pipeline (ID:11)
   81: 'BID Recebido',
   82: 'Proposta Enviada',
@@ -43,8 +44,9 @@ const STAGES = {
 }
 
 // Stages ativos das farmers — Funil OPORTUNIDADE (ID:7) + BID pipeline (ID:11)
-const FUNIL_STAGES = [54, 55, 56, 83]
-const FUNIL_ORDER = ['Pedido de Cotacao', 'Em Negociacao', 'Proposta Aprovada', 'Aguardando Resultado']
+// Inclui 89 (Qualificacao de Motorista), que antes nao era buscado.
+const FUNIL_STAGES = [54, 89, 55, 56, 83]
+const FUNIL_ORDER = ['Pedido de Cotacao', 'Qualificacao de Motorista', 'Em Negociacao', 'Proposta Aprovada', 'Aguardando Resultado']
 
 // Pipedrive Organizations — Clientes Ativos
 const CLIENTES_ATIVOS_FILTER_ID = 31374
@@ -106,17 +108,26 @@ function calcTermometro(perfilKey, lastCotacao, lastFechamento) {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
-// Mapeamento de users (todos os usuarios do sistema)
+// Mapeamento de users (todos os usuarios relevantes do Pipedrive — IDs reais)
 const USERS = {
-  24188122: 'Tayna Kazial',
+  26341042: 'Ana',
+  26693218: 'Danuzi',
   24588753: 'Gabrieli Muneretto',
-  23289334: 'Laurence Tataren'
+  26278430: 'Gustavo Marques',
+  23289334: 'Laurence Tataren',
+  24188122: 'Tayna Kazial'   // inativa — mantida para atribuir historico
 }
 
-// Apenas vendedoras — usado para inicializar metricas do dashboard (exclui Laurence)
+// IDs que NAO sao vendedoras (CEO/admin) — excluidos das metricas por vendedora e de won/lost
+const EXCLUDED_USER_IDS = new Set([23289334]) // Laurence
+
+// Vendedoras do funil de vendas (pipeline 7) — inicializa metricas do dashboard.
+// Inclui ativas (Danuzi, Ana, Gabrieli) + Tayna (inativa, mantida para historico).
 const VENDEDORAS = {
-  24188122: 'Tayna Kazial',
-  24588753: 'Gabrieli Muneretto'
+  26693218: 'Danuzi',
+  26341042: 'Ana',
+  24588753: 'Gabrieli Muneretto',
+  24188122: 'Tayna Kazial'
 }
 
 // Mapeamento de tipos de atividade para categorias do dashboard
@@ -139,6 +150,8 @@ function normalizeVendedoraName(name) {
   const s = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
   if (s.startsWith('tayna')) return 'Tayna Kazial'
   if (s.startsWith('gabrieli')) return 'Gabrieli Muneretto'
+  if (s.startsWith('danuzi')) return 'Danuzi'
+  if (s.startsWith('ana')) return 'Ana'
   return name
 }
 
@@ -162,10 +175,9 @@ async function pipedriveFetch(endpoint, params = {}) {
   return res.json()
 }
 
-async function fetchAllPages(endpoint, params = {}, filterFn = null, maxPages = 10) {
+async function fetchAllPages(endpoint, params = {}, filterFn = null, maxPages = 10, limit = 100) {
   let allData = []
   let start = 0
-  const limit = 100
   let page = 0
 
   while (page < maxPages) {
@@ -193,12 +205,20 @@ async function fetchOpenDeals() {
   return results.flat()
 }
 
+// IMPORTANTE: o endpoint /v1/deals NAO aceita os parametros pipeline_id nem start_date
+// (so aceita user_id, filter_id, stage_id, status, sort, start, limit). Por isso o filtro
+// de pipeline e feito no cliente (d.pipeline_id === 7) e o recorte temporal e feito ao
+// agrupar por mes (buildHistoricoMensal / filtros por mesFiltro). Excluimos Laurence (CEO).
+// limit=500 (maximo da API) x 20 paginas = ate 10.000 deals, evitando truncar a janela.
+function isVendedoraDeal(d) {
+  const uid = d.user_id?.id ?? d.user_id
+  return d.pipeline_id === 7 && !EXCLUDED_USER_IDS.has(uid)
+}
+
 async function fetchWonDeals(sinceDate) {
-  // Busca won deals das vendedoras — sort por won_time DESC garante que deals
-  // mais recentemente ganhos aparecem primeiro. maxPages=20 = ate 2000 deals.
-  const params = { status: 'won', pipeline_id: '7', user_id: '0', sort: 'won_time DESC' }
-  if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 20)
+  // Busca won deals do funil de vendas (pipeline 7) — sort por won_time DESC.
+  const params = { status: 'won', user_id: '0', sort: 'won_time DESC' }
+  const deals = await fetchAllPages('deals', params, isVendedoraDeal, 20, 500)
   // Dedup por ID: paginacao offset do Pipedrive retorna o mesmo deal em paginas
   // consecutivas quando multiplos deals tem won_time identico (ex: cotacoes fechadas em lote)
   const seen = new Set()
@@ -211,11 +231,9 @@ async function fetchWonDeals(sinceDate) {
 }
 
 async function fetchLostDeals(sinceDate) {
-  // Busca lost deals das vendedoras — sort por lost_time DESC.
-  // maxPages=20 = ate 2000 deals (cobre limpezas de CRM em lote).
-  const params = { status: 'lost', pipeline_id: '7', user_id: '0', sort: 'lost_time DESC' }
-  if (sinceDate) params.start_date = sinceDate
-  const deals = await fetchAllPages('deals', params, d => VENDEDORA_USER_IDS.includes(d.user_id?.id ?? d.user_id), 20)
+  // Busca lost deals do funil de vendas (pipeline 7) — sort por lost_time DESC.
+  const params = { status: 'lost', user_id: '0', sort: 'lost_time DESC' }
+  const deals = await fetchAllPages('deals', params, isVendedoraDeal, 20, 500)
   // Dedup por ID: mesmo motivo que fetchWonDeals
   const seen = new Set()
   return deals.filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true })
@@ -501,6 +519,24 @@ function buildAtividades(activities) {
 async function fetchClientesAtivos() {
   // Busca organizacoes do Pipedrive usando filtro "Clientes Ativos" (ID 31374)
   const orgs = await fetchAllPages('organizations', { filter_id: String(CLIENTES_ATIVOS_FILTER_ID) })
+
+  // Fix N/A: o endpoint de lista nao retorna o campo "Perfil de Compra" para orgs
+  // criadas antes do campo existir. Para essas, busca o detalhe individual da org.
+  const missing = orgs.filter(o => o[ORG_PERFIL_COMPRA_KEY] == null || o[ORG_PERFIL_COMPRA_KEY] === '')
+  if (missing.length > 0) {
+    const enriched = await Promise.all(
+      missing.map(async o => {
+        try {
+          const res = await pipedriveFetch(`organizations/${o.id}`)
+          return res.data || o
+        } catch (_) {
+          return o
+        }
+      })
+    )
+    const byId = Object.fromEntries(enriched.map(o => [o.id, o]))
+    return orgs.map(o => byId[o.id] || o)
+  }
   return orgs
 }
 
@@ -1130,7 +1166,10 @@ export default async function handler(req, res) {
     // Mes selecionado via query param (filtro global), default: mes atual
     const mesFiltro = req.query?.mes || mesAtual
     const startOfFilterMonth = `${mesFiltro}-01`
-    const endOfFilterMonth = `${mesFiltro}-31`
+    // Ultimo dia real do mes (evita datas invalidas como 2026-06-31 / 2026-02-31)
+    const [fy, fm] = mesFiltro.split('-').map(Number)
+    const lastDay = new Date(fy, fm, 0).getDate()
+    const endOfFilterMonth = `${mesFiltro}-${String(lastDay).padStart(2, '0')}`
 
     // Data de corte: 6 meses atras (para historico) - reduz drasticamente a paginacao
     const sinceDate = new Date(now.getFullYear(), now.getMonth() - 6, 1)
@@ -1141,11 +1180,13 @@ export default async function handler(req, res) {
       ? fetchFlashFTLTasks().catch(err => { console.error('ClickUp error:', err); return [] })
       : Promise.resolve([])
 
+    // Cada fetch tem .catch proprio: uma falha pontual degrada so aquela secao,
+    // em vez de derrubar o dashboard inteiro para dados DEMO falsos.
     const [rawOpen, rawWon, rawLost, rawActivities, rawFlashFTL, rawOrgs, rawPending, rawActivities30d, rawOverdue] = await Promise.all([
-      fetchOpenDeals(),
-      fetchWonDeals(sinceDateStr),
-      fetchLostDeals(sinceDateStr),
-      fetchActivities(startOfFilterMonth, endOfFilterMonth),
+      fetchOpenDeals().catch(err => { console.error('Open deals error:', err); return [] }),
+      fetchWonDeals(sinceDateStr).catch(err => { console.error('Won deals error:', err); return [] }),
+      fetchLostDeals(sinceDateStr).catch(err => { console.error('Lost deals error:', err); return [] }),
+      fetchActivities(startOfFilterMonth, endOfFilterMonth).catch(err => { console.error('Activities error:', err); return [] }),
       clickupPromise,
       fetchClientesAtivos().catch(err => { console.error('Orgs error:', err); return [] }),
       fetchPendingActivities(startOfFilterMonth, endOfFilterMonth).catch(err => { console.error('Pending activities error:', err); return [] }),
